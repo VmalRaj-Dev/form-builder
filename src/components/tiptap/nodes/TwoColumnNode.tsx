@@ -6,11 +6,11 @@ import { ContainerStyle } from '@/types/form';
 export interface TwoColumnNodeAttributes {
   id: string;
   style: ContainerStyle;
-  leftContent: any[];
-  rightContent: any[];
+  leftContent: unknown[];
+  rightContent: unknown[];
 }
 
-function TwoColumnNodeView({ node, updateAttributes, selected, editor }: NodeViewProps) {
+function TwoColumnNodeView({ node, updateAttributes, selected }: NodeViewProps) {
   const { id, style, leftContent = [], rightContent = [] } = node.attrs as TwoColumnNodeAttributes;
 
   const containerClasses = [
@@ -31,7 +31,7 @@ function TwoColumnNodeView({ node, updateAttributes, selected, editor }: NodeVie
   ].join(' ');
 
   return (
-    <NodeViewWrapper className={containerClasses}>
+    <NodeViewWrapper className={containerClasses} data-id={id}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded">
@@ -57,8 +57,16 @@ function TwoColumnNodeView({ node, updateAttributes, selected, editor }: NodeVie
             data-column="left"
             onDrop={(e) => {
               e.preventDefault();
-              // Handle drop logic here
-              console.log('Dropped in left column');
+              const fieldData = e.dataTransfer?.getData('application/json');
+              if (fieldData) {
+                try {
+                  const field = JSON.parse(fieldData);
+                  const updatedLeftContent = [...leftContent, field];
+                  updateAttributes({ leftContent: updatedLeftContent });
+                } catch (error) {
+                  console.error('Error parsing dropped field data:', error);
+                }
+              }
             }}
             onDragOver={(e) => {
               e.preventDefault();
@@ -81,8 +89,16 @@ function TwoColumnNodeView({ node, updateAttributes, selected, editor }: NodeVie
             data-column="right"
             onDrop={(e) => {
               e.preventDefault();
-              // Handle drop logic here
-              console.log('Dropped in right column');
+              const fieldData = e.dataTransfer?.getData('application/json');
+              if (fieldData) {
+                try {
+                  const field = JSON.parse(fieldData);
+                  const updatedRightContent = [...rightContent, field];
+                  updateAttributes({ rightContent: updatedRightContent });
+                } catch (error) {
+                  console.error('Error parsing dropped field data:', error);
+                }
+              }
             }}
             onDragOver={(e) => {
               e.preventDefault();
@@ -160,13 +176,6 @@ export const TwoColumnNode = Node.create({
   },
 
   addCommands() {
-    return {
-      insertTwoColumn: (attributes?: Partial<TwoColumnNodeAttributes>) => ({ commands }) => {
-        return commands.insertContent({
-          type: this.name,
-          attrs: attributes,
-        });
-      },
-    };
+    return {} as never;
   },
 });

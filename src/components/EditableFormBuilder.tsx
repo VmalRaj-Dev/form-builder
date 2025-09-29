@@ -1,24 +1,18 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { FormFieldData, FormFieldType, FormSchema, FormDesign, FieldOption, SubmitButton } from '@/types/form';
+import React, { useState, useCallback, useRef } from 'react';
+import { FormFieldData, FormFieldType, FormSchema, FormDesign, FieldOption, LayoutContainer } from '@/types/form';
 import { FormPreviewLive } from './FormPreviewLive';
 import { ThemeInspector } from './design/ThemeInspector';
 import { FieldDesignInspector } from './design/FieldDesignInspector';
 import { convertFieldStyleToCSS, convertFormDesignToCSS } from '@/utils/tailwindToCss';
-import Image from 'next/image';
 
 type ViewMode = 'builder' | 'preview';
 type InspectorMode = 'field' | 'theme';
 
-interface LayoutContainer {
-  id: string;
-  type: 'single' | 'two-column';
-  leftFields: string[];
-  rightFields: string[];
-}
 
 export function EditableFormBuilder() {
+  const idCounterRef = useRef(0);
   const [fields, setFields] = useState<FormFieldData[]>([]);
   const [containers, setContainers] = useState<LayoutContainer[]>([]);
   const [selectedField, setSelectedField] = useState<FormFieldData | null>(null);
@@ -57,7 +51,7 @@ export function EditableFormBuilder() {
 
   const addField = useCallback((type: FormFieldType, containerId?: string, column?: 'left' | 'right') => {
     const newField: FormFieldData = {
-      id: `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `field_${++idCounterRef.current}`,
       type,
       label: `${type.charAt(0).toUpperCase() + type.slice(1)} Field`,
       placeholder: type === 'separator' ? '' : `Enter ${type}...`,
@@ -119,14 +113,14 @@ export function EditableFormBuilder() {
             return {
               ...container,
               [column === 'left' ? 'leftFields' : 'rightFields']: [
-                ...container[column === 'left' ? 'leftFields' : 'rightFields'],
+                ...(container[column === 'left' ? 'leftFields' : 'rightFields'] || []),
                 newField.id
               ]
             };
           } else {
             return {
               ...container,
-              leftFields: [...container.leftFields, newField.id]
+              leftFields: [...(container.leftFields || []), newField.id]
             };
           }
         }
@@ -138,10 +132,11 @@ export function EditableFormBuilder() {
     setInspectorMode('field');
   }, []);
 
-  const addContainer = useCallback((type: 'single' | 'two-column') => {
+  const addContainer = useCallback((type: 'single-column' | 'two-column') => {
     const newContainer: LayoutContainer = {
-      id: `container_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `container_${++idCounterRef.current}`,
       type,
+      fields: [],
       leftFields: [],
       rightFields: [],
     };
@@ -165,8 +160,8 @@ export function EditableFormBuilder() {
     // Remove from containers
     setContainers(prev => prev.map(container => ({
       ...container,
-      leftFields: container.leftFields.filter(id => id !== fieldId),
-      rightFields: container.rightFields.filter(id => id !== fieldId),
+      leftFields: (container.leftFields || []).filter(id => id !== fieldId),
+      rightFields: (container.rightFields || []).filter(id => id !== fieldId),
     })));
 
     if (selectedField?.id === fieldId) {
@@ -203,8 +198,8 @@ export function EditableFormBuilder() {
 
       return {
         ...container,
-        leftFields: moveInArray(container.leftFields),
-        rightFields: moveInArray(container.rightFields),
+        leftFields: moveInArray(container.leftFields || []),
+        rightFields: moveInArray(container.rightFields || []),
       };
     }));
   }, []);
@@ -226,8 +221,8 @@ export function EditableFormBuilder() {
     // Remove field from all containers first
     setContainers(prev => prev.map(container => ({
       ...container,
-      leftFields: container.leftFields.filter(id => id !== fieldId),
-      rightFields: container.rightFields.filter(id => id !== fieldId),
+      leftFields: (container.leftFields || []).filter(id => id !== fieldId),
+      rightFields: (container.rightFields || []).filter(id => id !== fieldId),
     })));
 
     // Add to target container
@@ -237,12 +232,12 @@ export function EditableFormBuilder() {
           const targetField = column === 'left' ? 'leftFields' : 'rightFields';
           return {
             ...container,
-            [targetField]: [...container[targetField], fieldId]
+            [targetField]: [...(container[targetField] || []), fieldId]
           };
         } else {
           return {
             ...container,
-            leftFields: [...container.leftFields, fieldId]
+            leftFields: [...(container.leftFields || []), fieldId]
           };
         }
       }
@@ -254,12 +249,12 @@ export function EditableFormBuilder() {
     const container = containers.find(c => c.id === containerId);
     if (!container) return [];
     
-    const fieldIds = column ? container[`${column}Fields` as keyof LayoutContainer] as string[] : container.leftFields;
+    const fieldIds = column ? (container[`${column}Fields` as keyof LayoutContainer] as string[] || []) : (container.leftFields || []);
     return fields.filter(field => fieldIds.includes(field.id));
   }, [containers, fields]);
 
   const getStandaloneFields = useCallback(() => {
-    const containerFieldIds = containers.flatMap(c => [...c.leftFields, ...c.rightFields]);
+    const containerFieldIds = containers.flatMap(c => [...(c.leftFields || []), ...(c.rightFields || [])]);
     return fields.filter(field => !containerFieldIds.includes(field.id));
   }, [containers, fields]);
 
@@ -280,10 +275,10 @@ export function EditableFormBuilder() {
       layout: { type: 'single' },
       containers: containers.map(c => ({
         id: c.id,
-        type: c.type === 'single' ? 'single-column' : 'two-column',
-        fields: c.leftFields,
-        leftFields: c.leftFields,
-        rightFields: c.rightFields,
+        type: c.type,
+        fields: c.leftFields || [],
+        leftFields: c.leftFields || [],
+        rightFields: c.rightFields || [],
       })),
       design: designWithCSS,
     };
@@ -376,7 +371,7 @@ export function EditableFormBuilder() {
       >
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded font-medium">
-            {container.type === 'single' ? 'SINGLE COLUMN' : 'TWO COLUMN'}
+            {container.type === 'single-column' ? 'SINGLE COLUMN' : 'TWO COLUMN'}
           </span>
           <button
             onClick={(e) => {
@@ -572,7 +567,7 @@ export function EditableFormBuilder() {
               </div>
             </button>
             <button
-              onClick={() => addContainer('single')}
+              onClick={() => addContainer('single-column')}
               className="w-full flex items-center space-x-2 p-2 border border-gray-200 rounded hover:border-gray-300 hover:bg-gray-50 transition-colors text-sm"
             >
               <span>📄</span>
@@ -651,13 +646,11 @@ export function EditableFormBuilder() {
                 onClick={handleExportSchema}
                 className="px-4 py-2 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
               >
-                Export Schema
+                💾 Export
               </button>
             </div>
           </div>
         </div>
-
-        {/* Canvas Area */}
         <div className="flex-1 overflow-auto p-6">
           {viewMode === 'preview' ? (
             <FormPreviewLive

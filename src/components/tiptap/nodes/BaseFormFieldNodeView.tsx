@@ -35,7 +35,7 @@ export function BaseFormFieldNodeView({
         acc[key] = node.attrs[key];
       }
       return acc;
-    }, {} as Record<string, any>),
+    }, {} as Record<string, unknown>),
   } as FormFieldData;
 
   const handleSelect = () => {
@@ -58,7 +58,7 @@ export function BaseFormFieldNodeView({
         isSelected: selected,
         onSelect: handleSelect,
         onUpdate: handleUpdate,
-      } as any)}
+      } as FormFieldNodeViewProps)}
     </NodeViewWrapper>
   );
 }

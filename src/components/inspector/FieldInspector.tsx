@@ -35,7 +35,7 @@ export function FieldInspector({ selectedField, onUpdateField }: FieldInspectorP
     );
   }
 
-  const updateField = (key: string, value: any) => {
+  const updateField = (key: string, value: unknown) => {
     const updates = { [key]: value };
     setLocalField(prev => prev ? { ...prev, ...updates } : null);
     onUpdateField(updates);
@@ -155,7 +155,7 @@ export function FieldInspector({ selectedField, onUpdateField }: FieldInspectorP
               </button>
             </div>
             <div className="space-y-2">
-              {localField.options.map((option, index) => (
+              {(localField.options || []).map((option, index) => (
                 <div key={option.id} className="flex gap-2">
                   <input
                     type="text"
@@ -164,7 +164,7 @@ export function FieldInspector({ selectedField, onUpdateField }: FieldInspectorP
                     placeholder={`Option ${index + 1}`}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   />
-                  {localField.options.length > 1 && (
+                  {(localField.options?.length || 0) > 1 && (
                     <button
                       onClick={() => removeOption(option.id)}
                       className="px-2 py-2 text-red-600 hover:text-red-800"
@@ -188,7 +188,7 @@ export function FieldInspector({ selectedField, onUpdateField }: FieldInspectorP
               type="number"
               min="2"
               max="10"
-              value={(localField as any).rows || 4}
+              value={localField.rows || 4}
               onChange={(e) => updateField('rows', parseInt(e.target.value))}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />

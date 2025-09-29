@@ -30,10 +30,6 @@ export function FormBuilder() {
     // through the updateSelectedField callback
   }, [selectedField]);
 
-  const handlePreview = useCallback((schema: FormSchema) => {
-    setFormSchema(schema);
-    setViewMode('preview');
-  }, []);
 
   const handleBackToBuilder = useCallback(() => {
     setViewMode('builder');

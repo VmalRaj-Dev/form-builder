@@ -11,20 +11,13 @@ import {
   isValidFontUrl,
   removeCustomFont 
 } from '@/utils/fontLoader';
+import Image from 'next/image';
 
 interface ThemeInspectorProps {
   design: FormDesign;
   onUpdateDesign: (updates: Partial<FormDesign>) => void;
 }
 
-const BACKGROUND_COLORS = [
-  { label: 'White', value: 'bg-white', color: '#ffffff' },
-  { label: 'Gray 50', value: 'bg-gray-50', color: '#f9fafb' },
-  { label: 'Gray 100', value: 'bg-gray-100', color: '#f3f4f6' },
-  { label: 'Blue 50', value: 'bg-blue-50', color: '#eff6ff' },
-  { label: 'Green 50', value: 'bg-green-50', color: '#f0fdf4' },
-  { label: 'Purple 50', value: 'bg-purple-50', color: '#faf5ff' },
-];
 
 const FONT_FAMILIES = [
   { label: 'Sans Serif', value: 'font-sans' },
@@ -102,7 +95,7 @@ export function ThemeInspector({ design, onUpdateDesign }: ThemeInspectorProps) 
       setNewFontUrl('');
       setNewFontName('');
       setIsAddingFont(false);
-    } catch (error) {
+    } catch {
       alert('Failed to load font. Please check the URL and try again.');
     }
   };
@@ -157,7 +150,7 @@ export function ThemeInspector({ design, onUpdateDesign }: ThemeInspectorProps) 
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as 'appearance' | 'spacing' | 'branding' | 'fonts' | 'submit')}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
@@ -466,9 +459,11 @@ export function ThemeInspector({ design, onUpdateDesign }: ThemeInspectorProps) 
             {design.logoUrl && (
               <div className="border border-gray-200 rounded-lg p-4">
                 <div className="text-sm font-medium text-gray-700 mb-2">Preview</div>
-                <img
+                <Image
                   src={design.logoUrl}
                   alt="Form logo"
+                  width={200}
+                  height={64}
                   className="max-w-full h-16 object-contain"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
@@ -534,7 +529,7 @@ export function ThemeInspector({ design, onUpdateDesign }: ThemeInspectorProps) 
                   placeholder="12px 24px"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">Format: top/bottom left/right (e.g., "12px 24px")</p>
+                <p className="text-xs text-gray-500 mt-1">Format: top/bottom left/right (e.g., &quot;12px 24px&quot;)</p>
               </div>
 
               <NumberInput
@@ -603,7 +598,7 @@ export function ThemeInspector({ design, onUpdateDesign }: ThemeInspectorProps) 
                     <button
                       key={align.value}
                       onClick={() => onUpdateDesign({ 
-                        submitButton: { ...design.submitButton, alignment: align.value as any }
+                        submitButton: { ...design.submitButton, alignment: align.value as 'left' | 'center' | 'right' }
                       })}
                       className={`flex-1 px-3 py-2 text-xs border rounded-md transition-colors ${
                         design.submitButton?.alignment === align.value

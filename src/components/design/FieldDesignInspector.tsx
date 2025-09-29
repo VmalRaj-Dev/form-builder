@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { FormFieldData, FieldStyle, ValidationRule } from '@/types/form';
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { NumberInput } from '@/components/ui/NumberInput';
-import { getValidationRulesForFieldType, isValidationRuleApplicable } from '@/utils/fieldValidation';
 
 interface FieldDesignInspectorProps {
   selectedField: FormFieldData | null;
@@ -12,57 +11,9 @@ interface FieldDesignInspectorProps {
   allFields?: FormFieldData[]; // For conditional logic dependencies
 }
 
-const LABEL_COLORS = [
-  { label: 'Black', value: 'text-black', color: '#000000' },
-  { label: 'Gray 900', value: 'text-gray-900', color: '#111827' },
-  { label: 'Gray 700', value: 'text-gray-700', color: '#374151' },
-  { label: 'Blue 600', value: 'text-blue-600', color: '#2563eb' },
-  { label: 'Green 600', value: 'text-green-600', color: '#059669' },
-  { label: 'Purple 600', value: 'text-purple-600', color: '#9333ea' },
-];
-
-const BORDER_COLORS = [
-  { label: 'Gray 300', value: 'border-gray-300', color: '#d1d5db' },
-  { label: 'Blue 500', value: 'border-blue-500', color: '#3b82f6' },
-  { label: 'Green 500', value: 'border-green-500', color: '#10b981' },
-  { label: 'Red 500', value: 'border-red-500', color: '#ef4444' },
-  { label: 'Purple 500', value: 'border-purple-500', color: '#8b5cf6' },
-];
-
-const BORDER_RADIUS = [
-  { label: 'None', value: 'rounded-none' },
-  { label: 'Small', value: 'rounded-sm' },
-  { label: 'Medium', value: 'rounded-md' },
-  { label: 'Large', value: 'rounded-lg' },
-  { label: 'Extra Large', value: 'rounded-xl' },
-  { label: 'Full', value: 'rounded-full' },
-];
-
-const BACKGROUND_COLORS = [
-  { label: 'White', value: 'bg-white', color: '#ffffff' },
-  { label: 'Gray 50', value: 'bg-gray-50', color: '#f9fafb' },
-  { label: 'Blue 50', value: 'bg-blue-50', color: '#eff6ff' },
-  { label: 'Green 50', value: 'bg-green-50', color: '#f0fdf4' },
-  { label: 'Yellow 50', value: 'bg-yellow-50', color: '#fffbeb' },
-];
-
-const FOCUS_COLORS = [
-  { label: 'Blue', value: 'focus:ring-blue-500' },
-  { label: 'Green', value: 'focus:ring-green-500' },
-  { label: 'Purple', value: 'focus:ring-purple-500' },
-  { label: 'Red', value: 'focus:ring-red-500' },
-];
-
-const FIELD_ICONS = [
-  { label: 'None', value: '' },
-  { label: 'User', value: 'user' },
-  { label: 'Mail', value: 'mail' },
-  { label: 'Phone', value: 'phone' },
-  { label: 'Lock', value: 'lock' },
-  { label: 'Calendar', value: 'calendar' },
-];
 
 export function FieldDesignInspector({ selectedField, onUpdateField, allFields = [] }: FieldDesignInspectorProps) {
+  const optionIdCounterRef = useRef(0);
   const [activeTab, setActiveTab] = useState<'content' | 'design' | 'validation'>('content');
 
   if (!selectedField) {
@@ -202,19 +153,19 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
             )}
 
             {/* Options Management for Dropdown and Radio Fields */}
-            {(selectedField.type === 'dropdown' || selectedField.type === 'radio') && (
+            {(selectedField.type === 'dropdown' || selectedField.type === 'radio') && 'options' in selectedField && (
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <label className="block text-sm font-medium text-gray-700">Options</label>
                   <button
                     onClick={() => {
                       const newOption = {
-                        id: `option_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                        label: `Option ${(selectedField.options?.length || 0) + 1}`,
-                        value: `option_${(selectedField.options?.length || 0) + 1}`
+                        id: `option_${++optionIdCounterRef.current}`,
+                        label: `Option ${('options' in selectedField ? selectedField.options?.length || 0 : 0) + 1}`,
+                        value: `option_${('options' in selectedField ? selectedField.options?.length || 0 : 0) + 1}`
                       };
                       onUpdateField({
-                        options: [...(selectedField.options || []), newOption]
+                        options: [...('options' in selectedField ? selectedField.options || [] : []), newOption]
                       });
                     }}
                     className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
@@ -224,7 +175,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                 </div>
                 
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {(selectedField.options || []).map((option, index) => (
+                  {('options' in selectedField ? selectedField.options || [] : []).map((option, index) => (
                     <div key={option.id} className="flex gap-2 items-center p-3 bg-gray-50 rounded-md">
                       <div className="flex-1 space-y-2">
                         <div>
@@ -233,7 +184,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                             type="text"
                             value={option.label}
                             onChange={(e) => {
-                              const updatedOptions = [...(selectedField.options || [])];
+                              const updatedOptions = [...('options' in selectedField ? selectedField.options || [] : [])];
                               updatedOptions[index] = { ...option, label: e.target.value };
                               onUpdateField({ options: updatedOptions });
                             }}
@@ -247,7 +198,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                             type="text"
                             value={option.value}
                             onChange={(e) => {
-                              const updatedOptions = [...(selectedField.options || [])];
+                              const updatedOptions = [...('options' in selectedField ? selectedField.options || [] : [])];
                               updatedOptions[index] = { ...option, value: e.target.value };
                               onUpdateField({ options: updatedOptions });
                             }}
@@ -261,7 +212,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                         {index > 0 && (
                           <button
                             onClick={() => {
-                              const updatedOptions = [...(selectedField.options || [])];
+                              const updatedOptions = [...('options' in selectedField ? selectedField.options || [] : [])];
                               [updatedOptions[index - 1], updatedOptions[index]] = [updatedOptions[index], updatedOptions[index - 1]];
                               onUpdateField({ options: updatedOptions });
                             }}
@@ -274,10 +225,10 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                           </button>
                         )}
                         {/* Move Down */}
-                        {index < (selectedField.options?.length || 0) - 1 && (
+                        {index < (('options' in selectedField ? selectedField.options?.length || 0 : 0) - 1) && (
                           <button
                             onClick={() => {
-                              const updatedOptions = [...(selectedField.options || [])];
+                              const updatedOptions = [...('options' in selectedField ? selectedField.options || [] : [])];
                               [updatedOptions[index], updatedOptions[index + 1]] = [updatedOptions[index + 1], updatedOptions[index]];
                               onUpdateField({ options: updatedOptions });
                             }}
@@ -292,7 +243,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                         {/* Delete */}
                         <button
                           onClick={() => {
-                            const updatedOptions = (selectedField.options || []).filter((_, i) => i !== index);
+                            const updatedOptions = ('options' in selectedField ? selectedField.options || [] : []).filter((_, i) => i !== index);
                             onUpdateField({ options: updatedOptions });
                           }}
                           className="p-1 text-red-400 hover:text-red-600 transition-colors"
@@ -306,7 +257,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                     </div>
                   ))}
                   
-                  {(!selectedField.options || selectedField.options.length === 0) && (
+                  {(!('options' in selectedField) || !selectedField.options || selectedField.options.length === 0) && (
                     <div className="text-center py-8 text-gray-500">
                       <div className="mb-2">
                         <svg className="w-8 h-8 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -314,14 +265,14 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                         </svg>
                       </div>
                       <p className="text-sm">No options added yet</p>
-                      <p className="text-xs text-gray-400">Click "Add Option" to create your first option</p>
+                      <p className="text-xs text-gray-400">Click &quot;Add Option&quot; to create your first option</p>
                     </div>
                   )}
                 </div>
                 
-                {selectedField.options && selectedField.options.length > 0 && (
+                {('options' in selectedField && selectedField.options && selectedField.options.length > 0) && (
                   <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                    <strong>Preview:</strong> {selectedField.options.length} option{selectedField.options.length !== 1 ? 's' : ''} configured
+                    <strong>Preview:</strong> {'options' in selectedField && selectedField.options ? selectedField.options.length : 0} option{('options' in selectedField && selectedField.options && selectedField.options.length !== 1) ? 's' : ''} configured
                   </div>
                 )}
               </div>
@@ -360,7 +311,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                   <label className="block text-xs font-medium text-gray-600 mb-1">Font Weight</label>
                   <select
                     value={fieldStyle.labelWeight || 'medium'}
-                    onChange={(e) => updateStyle({ labelWeight: e.target.value as any })}
+                    onChange={(e) => updateStyle({ labelWeight: e.target.value as 'normal' | 'medium' | 'semibold' | 'bold' })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   >
                     <option value="normal">Normal</option>
@@ -381,7 +332,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                     ].map((align) => (
                       <button
                         key={align.value}
-                        onClick={() => updateStyle({ labelAlignment: align.value as any })}
+                        onClick={() => updateStyle({ labelAlignment: align.value as 'left' | 'center' | 'right' })}
                         className={`flex-1 px-3 py-2 text-xs border rounded-md transition-colors ${
                           fieldStyle.labelAlignment === align.value
                             ? 'border-blue-500 bg-blue-50 text-blue-700'
@@ -474,7 +425,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                       placeholder="8px 12px"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Format: top/bottom left/right (e.g., "8px 12px")</p>
+                    <p className="text-xs text-gray-500 mt-1">Format: top/bottom left/right (e.g., &quot;8px 12px&quot;)</p>
                   </div>
 
                   {/* Input Height */}
@@ -664,7 +615,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                           placeholder="12px 16px"
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Format: "top bottom" or "top right bottom left"</p>
+                        <p className="text-xs text-gray-500 mt-1">Format: &quot;top bottom&quot; or &quot;top right bottom left&quot;</p>
                       </div>
                     </>
                   )}
@@ -910,7 +861,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                   <h4 className="text-sm font-medium text-gray-700 mb-3">Date Format</h4>
                   <select
                     value={validation.dateFormat || 'YYYY-MM-DD'}
-                    onChange={(e) => updateValidation({ dateFormat: e.target.value as any })}
+                    onChange={(e) => updateValidation({ dateFormat: e.target.value as 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'DD-MM-YYYY' | 'MM-DD-YYYY' | 'custom' })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   >
                     <option value="YYYY-MM-DD">YYYY-MM-DD</option>
@@ -995,7 +946,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Postal Code Format</h4>
                 <select
                   value={validation.postalFormat || 'US'}
-                  onChange={(e) => updateValidation({ postalFormat: e.target.value as any })}
+                  onChange={(e) => updateValidation({ postalFormat: e.target.value as 'US' | 'UK' | 'CA' | 'IN' | 'custom' })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   <option value="US">US (12345 or 12345-6789)</option>
@@ -1404,7 +1355,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                               >
                                 <option value="">Select an option...</option>
-                                {dependentField.options?.map(option => (
+                                {('options' in dependentField ? dependentField.options : [])?.map(option => (
                                   <option key={option.id} value={option.value}>
                                     {option.label}
                                   </option>
@@ -1446,7 +1397,7 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                           {selectedField.conditionalLogic.condition === 'not_checked' && 'is not checked'}
                         </span>
                         {!['checked', 'not_checked'].includes(selectedField.conditionalLogic.condition) && (
-                          <span className="font-medium"> "{selectedField.conditionalLogic.value}"</span>
+                          <span className="font-medium"> &quot;{selectedField.conditionalLogic.value}&quot;</span>
                         )}
                       </div>
                     )}
