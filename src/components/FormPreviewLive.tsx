@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FormFieldData, FormDesign, FieldOption } from '@/types/form';
-import { tailwindToCSS } from '@/utils/tailwindToCss';
-import { formatDateValue, parseDateValue, getDatePlaceholder } from '@/utils/dateFormatting';
+import Image from 'next/image';
+import { FormFieldData, FormDesign, FieldOption, LayoutContainer } from '@/types/form';
+import { formatDateValue } from '@/utils/dateFormatting';
 import { loadCustomFonts } from '@/utils/fontLoader';
 import { 
   fieldContainerToCSS, 
@@ -13,15 +13,9 @@ import {
   mergeFieldStyles,
   parsePadding
 } from '@/utils/fieldStyleUtils';
-import { validateField, validateForm } from '@/utils/fieldValidation';
+import { validateField } from '@/utils/fieldValidation';
 import { DatePicker } from '@/components/ui/DatePicker';
 
-interface LayoutContainer {
-  id: string;
-  type: 'single' | 'two-column';
-  leftFields: string[];
-  rightFields: string[];
-}
 
 interface FormPreviewLiveProps {
   fields: FormFieldData[];
@@ -90,7 +84,7 @@ export function FormPreviewLive({
         const styleId = `dropdown-styles-${field.id}`;
         
         // Remove existing style if it exists
-        let existingStyle = document.getElementById(styleId);
+        const existingStyle = document.getElementById(styleId);
         if (existingStyle) {
           existingStyle.remove();
         }
@@ -187,16 +181,6 @@ export function FormPreviewLive({
     }
   };
 
-  // Postal code validation patterns
-  const getPostalPattern = (format: string): string => {
-    switch (format) {
-      case 'US': return '^[0-9]{5}(-[0-9]{4})?$';
-      case 'UK': return '^[A-Z]{1,2}[0-9R][0-9A-Z]? [0-9][A-Z]{2}$';
-      case 'IN': return '^[0-9]{6}$';
-      default: return '';
-    }
-  };
-
   // Note: Using comprehensive validation from fieldValidation.ts
 
   const getFieldsInContainer = (containerId: string, column?: 'left' | 'right') => {
@@ -204,11 +188,11 @@ export function FormPreviewLive({
     if (!container) return [];
     
     const fieldIds = column ? container[`${column}Fields` as keyof LayoutContainer] as string[] : container.leftFields;
-    return fields.filter(field => fieldIds.includes(field.id));
+    return fields.filter(field => fieldIds?.includes(field.id));
   };
 
   const getStandaloneFields = () => {
-    const containerFieldIds = containers.flatMap(c => [...c.leftFields, ...c.rightFields]);
+    const containerFieldIds = containers.flatMap(c => [...(c.leftFields || []), ...(c.rightFields || [])]);
     return fields.filter(field => !containerFieldIds.includes(field.id));
   };
 
@@ -754,12 +738,14 @@ export function FormPreviewLive({
         <div className="mb-8">
           {formDesign.logoUrl && (
             <div className="mb-6">
-              <img
+              <Image
                 src={formDesign.logoUrl}
                 alt="Form logo"
+                width={200}
+                height={64}
                 className="h-16 object-contain"
                 onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).style.display = 'none';
                 }}
               />
             </div>

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { FormFieldData, FormFieldType, FormSchema, FormDesign, LayoutContainer } from '@/types/form';
+import React, { useState, useCallback, useRef } from 'react';
+import Image from 'next/image';
+import { FormFieldData, FormFieldType, FormSchema, FormDesign, LayoutContainer, FieldOption } from '@/types/form';
 import { StructurePalette } from './structure/StructurePalette';
 import { ThemeInspector } from './design/ThemeInspector';
 import { FieldDesignInspector } from './design/FieldDesignInspector';
@@ -12,12 +13,12 @@ type ViewMode = 'builder' | 'preview';
 type InspectorMode = 'field' | 'theme';
 
 export function AdvancedFormBuilder() {
+  const idCounterRef = useRef(0);
   const [fields, setFields] = useState<FormFieldData[]>([]);
   const [containers, setContainers] = useState<LayoutContainer[]>([]);
   const [selectedField, setSelectedField] = useState<FormFieldData | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('builder');
   const [inspectorMode, setInspectorMode] = useState<InspectorMode>('field');
-  const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
   const [formTitle, setFormTitle] = useState('Untitled Form');
   const [formDescription, setFormDescription] = useState('');
   const [formDesign, setFormDesign] = useState<FormDesign>({
@@ -32,7 +33,7 @@ export function AdvancedFormBuilder() {
 
   const addField = useCallback((type: FormFieldType) => {
     const newField: FormFieldData = {
-      id: `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `field_${++idCounterRef.current}`,
       type,
       label: `${type.charAt(0).toUpperCase() + type.slice(1)} Field`,
       placeholder: type === 'separator' ? '' : `Enter ${type}...`,
@@ -41,7 +42,7 @@ export function AdvancedFormBuilder() {
       layout: 'standalone',
       style: {
         labelColor: 'text-gray-700',
-        labelWeight: 'font-medium',
+        labelWeight: 'medium',
         labelAlignment: 'left',
         inputBorderColor: 'border-gray-300',
         inputBorderRadius: 'rounded-md',
@@ -64,7 +65,7 @@ export function AdvancedFormBuilder() {
 
   const addSingleColumn = useCallback(() => {
     const newContainer: LayoutContainer = {
-      id: `single_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `single_${++idCounterRef.current}`,
       type: 'single-column',
       fields: [],
       style: {
@@ -81,7 +82,7 @@ export function AdvancedFormBuilder() {
 
   const addTwoColumn = useCallback(() => {
     const newContainer: LayoutContainer = {
-      id: `two_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `two_${++idCounterRef.current}`,
       type: 'two-column',
       fields: [],
       leftFields: [],
@@ -134,18 +135,8 @@ export function AdvancedFormBuilder() {
   }, []);
 
   const handlePreview = useCallback(() => {
-    const schema: FormSchema = {
-      id: `form_${Date.now()}`,
-      title: formTitle,
-      description: formDescription,
-      fields,
-      layout: { type: 'single' },
-      containers,
-      design: formDesign,
-    };
-    setFormSchema(schema);
     setViewMode('preview');
-  }, [fields, containers, formTitle, formDescription, formDesign]);
+  }, []);
 
   const handleExportSchema = useCallback(() => {
     // Convert all Tailwind classes to CSS for export
@@ -186,7 +177,7 @@ export function AdvancedFormBuilder() {
     alert('Enhanced form schema exported with exact CSS properties!');
   }, [fields, containers, formTitle, formDescription, formDesign]);
 
-  const renderField = (field: FormFieldData, index: number) => {
+  const renderField = (field: FormFieldData) => {
     const isSelected = selectedField?.id === field.id;
     const fieldStyle = field.style || {};
 
@@ -305,7 +296,7 @@ export function AdvancedFormBuilder() {
               {field.type === 'longtext' && (
                 <textarea
                   placeholder={field.placeholder}
-                  rows={(field as any).rows || 4}
+                  rows={field.type === 'longtext' && 'rows' in field ? field.rows : 4}
                   className={`${inputClasses} resize-vertical`}
                   disabled
                 />
@@ -323,7 +314,7 @@ export function AdvancedFormBuilder() {
               {field.type === 'dropdown' && (
                 <select className={inputClasses} disabled>
                   <option>{field.placeholder || 'Select an option...'}</option>
-                  {(field as any).options?.map((option: any) => (
+                  {field.type === 'dropdown' && 'options' in field && field.options?.map((option: FieldOption) => (
                     <option key={option.id}>{option.label}</option>
                   ))}
                 </select>
@@ -338,7 +329,7 @@ export function AdvancedFormBuilder() {
 
               {field.type === 'radio' && (
                 <div className="space-y-2">
-                  {(field as any).options?.map((option: any) => (
+                  {field.type === 'radio' && 'options' in field && field.options?.map((option: FieldOption) => (
                     <label key={option.id} className="flex items-center space-x-2">
                       <input type="radio" disabled className="h-4 w-4" />
                       <span className="text-sm">{option.label}</span>
@@ -469,9 +460,11 @@ export function AdvancedFormBuilder() {
               <div className="border-b border-gray-200 pb-6 mb-6">
                 {formDesign.logoUrl && (
                   <div className="mb-4">
-                    <img
+                    <Image
                       src={formDesign.logoUrl}
                       alt="Form logo"
+                      width={200}
+                      height={64}
                       className="h-16 object-contain"
                     />
                   </div>
@@ -539,7 +532,7 @@ export function AdvancedFormBuilder() {
                 </div>
               ) : (
                 <div className={formDesign.spacing?.fields || 'space-y-6'}>
-                  {fields.map((field, index) => renderField(field, index))}
+                  {fields.map((field) => renderField(field))}
                 </div>
               )}
             </div>

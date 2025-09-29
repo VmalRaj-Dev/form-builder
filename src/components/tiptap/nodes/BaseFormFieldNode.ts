@@ -1,26 +1,27 @@
 import { Node, mergeAttributes } from '@tiptap/core';
-import { ReactNodeViewRenderer } from '@tiptap/react';
-import { FormFieldData, FormFieldType } from '@/types/form';
+import { ReactNodeViewRenderer, ReactNodeViewProps } from '@tiptap/react';
+import React from 'react';
+import { FormFieldType, ValidationRule, FormFieldData } from '@/types/form';
 
 export interface BaseFormFieldNodeOptions {
-  HTMLAttributes: Record<string, any>;
+  HTMLAttributes: Record<string, unknown>;
 }
 
-export interface BaseFormFieldNodeAttributes {
+export interface BaseFormFieldData {
   id: string;
   type: FormFieldType;
   label: string;
   placeholder?: string;
   description?: string;
   required?: boolean;
-  validation?: any;
-  [key: string]: any;
+  validation?: ValidationRule;
+  [key: string]: unknown;
 }
 
 export function createBaseFormFieldNode<T extends FormFieldData>(
   name: string,
   fieldType: FormFieldType,
-  NodeViewComponent: React.ComponentType<any>,
+  NodeViewComponent: React.ComponentType<ReactNodeViewProps>,
   defaultAttributes: Partial<T> = {}
 ) {
   return Node.create<BaseFormFieldNodeOptions>({
@@ -78,7 +79,7 @@ export function createBaseFormFieldNode<T extends FormFieldData>(
         ...Object.keys(defaultAttributes).reduce((acc, key) => {
           if (!['id', 'type', 'label', 'placeholder', 'description', 'required', 'validation'].includes(key)) {
             acc[key] = {
-              default: (defaultAttributes as any)[key],
+              default: (defaultAttributes as Record<string, unknown>)[key],
               parseHTML: (element: HTMLElement) => {
                 const value = element.getAttribute(`data-${key}`);
                 try {
@@ -87,7 +88,7 @@ export function createBaseFormFieldNode<T extends FormFieldData>(
                   return value;
                 }
               },
-              renderHTML: (attributes: any) => ({
+              renderHTML: (attributes: Record<string, unknown>) => ({
                 [`data-${key}`]: typeof attributes[key] === 'object' 
                   ? JSON.stringify(attributes[key]) 
                   : attributes[key]
@@ -95,7 +96,7 @@ export function createBaseFormFieldNode<T extends FormFieldData>(
             };
           }
           return acc;
-        }, {} as Record<string, any>),
+        }, {} as Record<string, unknown>),
       };
     },
 
@@ -107,7 +108,7 @@ export function createBaseFormFieldNode<T extends FormFieldData>(
       ];
     },
 
-    renderHTML({ HTMLAttributes }) {
+    renderHTML({ HTMLAttributes }: { HTMLAttributes: Record<string, unknown> }) {
       return ['div', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes)];
     },
 
@@ -116,34 +117,7 @@ export function createBaseFormFieldNode<T extends FormFieldData>(
     },
 
     addCommands() {
-      return {
-        insertFormField: (attributes: Partial<BaseFormFieldNodeAttributes>) => ({ commands }) => {
-          return commands.insertContent({
-            type: this.name,
-            attrs: {
-              ...defaultAttributes,
-              ...attributes,
-            },
-          });
-        },
-        updateFormField: (id: string, attributes: Partial<BaseFormFieldNodeAttributes>) => ({ commands, state }) => {
-          const { doc } = state;
-          let nodePos: number | null = null;
-
-          doc.descendants((node, pos) => {
-            if (node.type.name === this.name && node.attrs.id === id) {
-              nodePos = pos;
-              return false;
-            }
-          });
-
-          if (nodePos !== null) {
-            return commands.updateAttributes(this.name, attributes);
-          }
-
-          return false;
-        },
-      };
+      return {} as never;
     },
   });
 }

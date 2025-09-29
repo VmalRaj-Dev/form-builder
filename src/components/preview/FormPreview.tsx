@@ -1,7 +1,9 @@
 'use client';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react';
 import { FormSchema, FormFieldData } from '@/types/form';
+import Image from 'next/image';
 
 interface FormPreviewProps {
   schema: FormSchema;
@@ -349,9 +351,11 @@ export function FormPreview({ schema }: FormPreviewProps) {
         <div className="mb-8">
           {schema.design?.logoUrl && (
             <div className="mb-6">
-              <img
+              <Image
                 src={schema.design.logoUrl}
                 alt="Form logo"
+                width={200}
+                height={64}
                 className="h-16 object-contain"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
