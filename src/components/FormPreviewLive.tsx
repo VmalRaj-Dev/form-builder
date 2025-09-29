@@ -1,9 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FormFieldData, FormDesign, FieldOption } from '@/types/form';
 import { tailwindToCSS } from '@/utils/tailwindToCss';
 import { formatDateValue, parseDateValue, getDatePlaceholder } from '@/utils/dateFormatting';
+import { loadCustomFonts } from '@/utils/fontLoader';
+import { 
+  fieldContainerToCSS, 
+  fieldLabelToCSS, 
+  fieldInputToCSS, 
+  generateInputFocusCSS,
+  mergeFieldStyles,
+  parsePadding
+} from '@/utils/fieldStyleUtils';
+import { validateField, validateForm } from '@/utils/fieldValidation';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 interface LayoutContainer {
   id: string;
@@ -28,6 +39,101 @@ export function FormPreviewLive({
   formDesign 
 }: FormPreviewLiveProps) {
   const [formData, setFormData] = useState<Record<string, string | boolean | File | null>>({});
+
+  // Load custom fonts when they change
+  useEffect(() => {
+    if (formDesign.customFonts && formDesign.customFonts.length > 0) {
+      loadCustomFonts(formDesign.customFonts).catch(error => {
+        console.error('Failed to load custom fonts:', error);
+      });
+    }
+  }, [formDesign.customFonts]);
+
+  // Generate focus styles for all fields (moved here to avoid conditional hooks)
+  useEffect(() => {
+    fields.forEach(field => {
+      const fieldStyle = mergeFieldStyles({}, field.style || {});
+      const focusCSS = generateInputFocusCSS(field.id, fieldStyle);
+      const styleId = `field-focus-${field.id}`;
+      
+      // Remove existing style if it exists
+      const existingStyle = document.getElementById(styleId);
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+      
+      // Add new style
+      const styleElement = document.createElement('style');
+      styleElement.id = styleId;
+      styleElement.textContent = focusCSS;
+      document.head.appendChild(styleElement);
+    });
+    
+    // Cleanup function
+    return () => {
+      fields.forEach(field => {
+        const styleId = `field-focus-${field.id}`;
+        const style = document.getElementById(styleId);
+        if (style) {
+          style.remove();
+        }
+      });
+    };
+  }, [fields]);
+
+  // Generate dropdown option styles for all dropdown fields (moved here to avoid conditional hooks)
+  useEffect(() => {
+    fields.forEach(field => {
+      if (field.type === 'dropdown') {
+        const fieldStyle = mergeFieldStyles({}, field.style || {});
+        const dropdownId = `dropdown-${field.id}`;
+        const styleId = `dropdown-styles-${field.id}`;
+        
+        // Remove existing style if it exists
+        let existingStyle = document.getElementById(styleId);
+        if (existingStyle) {
+          existingStyle.remove();
+        }
+        
+        const style = document.createElement('style');
+        style.id = styleId;
+        
+        const optionStyles = `
+          #${dropdownId} option {
+            background-color: ${fieldStyle.inputBackgroundColor || '#ffffff'} !important;
+            color: ${fieldStyle.dropdownOptionTextColor || '#374151'} !important;
+            padding: ${fieldStyle.dropdownOptionPadding || '8px 12px'} !important;
+          }
+          
+          #${dropdownId} option:hover {
+            background-color: ${fieldStyle.dropdownHoverColor || '#f3f4f6'} !important;
+          }
+          
+          #${dropdownId} option:checked,
+          #${dropdownId} option:focus {
+            background-color: ${fieldStyle.dropdownSelectedColor || '#dbeafe'} !important;
+            color: ${fieldStyle.dropdownOptionTextColor || '#374151'} !important;
+          }
+        `;
+        
+        style.textContent = optionStyles;
+        document.head.appendChild(style);
+      }
+    });
+    
+    // Cleanup function
+    return () => {
+      fields.forEach(field => {
+        if (field.type === 'dropdown') {
+          const styleId = `dropdown-styles-${field.id}`;
+          const style = document.getElementById(styleId);
+          if (style) {
+            style.remove();
+          }
+        }
+      });
+    };
+  }, [fields]);
 
   // Debug logging
   console.log('FormPreviewLive rendered:', {
@@ -86,123 +192,12 @@ export function FormPreviewLive({
     switch (format) {
       case 'US': return '^[0-9]{5}(-[0-9]{4})?$';
       case 'UK': return '^[A-Z]{1,2}[0-9R][0-9A-Z]? [0-9][A-Z]{2}$';
-      case 'CA': return '^[A-Z][0-9][A-Z] [0-9][A-Z][0-9]$';
       case 'IN': return '^[0-9]{6}$';
       default: return '';
     }
   };
 
-  // Enhanced validation
-  const validateField = (field: FormFieldData, value: string | boolean | File | null): string | null => {
-    if (field.required && (!value || value === '')) {
-      return `${field.label} is required`;
-    }
-
-    if (typeof value === 'string' && value) {
-      const validation = field.validation;
-      if (!validation) return null;
-
-      // Length validation
-      if (validation.minLength && value.length < validation.minLength) {
-        return `${field.label} must be at least ${validation.minLength} characters`;
-      }
-      if (validation.maxLength && value.length > validation.maxLength) {
-        return `${field.label} must be no more than ${validation.maxLength} characters`;
-      }
-
-      // Postal code validation
-      if ((field.type as string) === 'postal' && validation.postalFormat) {
-        const pattern = validation.postalFormat === 'custom' 
-          ? validation.customPattern 
-          : getPostalPattern(validation.postalFormat);
-        
-        if (pattern && !new RegExp(pattern).test(value)) {
-          return `Please enter a valid postal code`;
-        }
-      }
-
-      // Email validation
-      if (field.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        return 'Please enter a valid email address';
-      }
-
-      // Phone validation
-      if (field.type === 'phone' && !/^[\+]?[1-9][\d]{0,15}$/.test(value.replace(/[\s\-\(\)]/g, ''))) {
-        return 'Please enter a valid phone number';
-      }
-    }
-
-    // Number validation
-    if (field.type === 'number' && typeof value === 'string' && value) {
-      const numValue = parseFloat(value);
-      const validation = field.validation;
-      if (validation?.min !== undefined && numValue < validation.min) {
-        return `${field.label} must be at least ${validation.min}`;
-      }
-      if (validation?.max !== undefined && numValue > validation.max) {
-        return `${field.label} must be no more than ${validation.max}`;
-      }
-    }
-
-    // File validation
-    if (field.type === 'file' && value instanceof File) {
-      const validation = field.validation;
-      if (validation?.maxFileSize && value.size > validation.maxFileSize * 1024 * 1024) {
-        return `File size must be less than ${validation.maxFileSize}MB`;
-      }
-      if (validation?.fileTypes?.length) {
-        const fileExt = value.name.split('.').pop()?.toLowerCase();
-        if (fileExt && !validation.fileTypes.includes(fileExt)) {
-          return `File type must be one of: ${validation.fileTypes.join(', ')}`;
-        }
-      }
-    }
-
-    // Date validation
-    if (field.type === 'date' && typeof value === 'string' && value) {
-      const validation = field.validation;
-      if (!validation) return null;
-
-      const selectedDate = new Date(value);
-      const today = new Date();
-      
-      // Check if date is valid
-      if (isNaN(selectedDate.getTime())) {
-        return 'Please enter a valid date';
-      }
-
-      // Min/Max date validation
-      if (validation.minDate) {
-        const minDate = new Date(validation.minDate);
-        if (selectedDate < minDate) {
-          return `Date must be on or after ${minDate.toLocaleDateString()}`;
-        }
-      }
-      
-      if (validation.maxDate) {
-        const maxDate = new Date(validation.maxDate);
-        if (selectedDate > maxDate) {
-          return `Date must be on or before ${maxDate.toLocaleDateString()}`;
-        }
-      }
-
-      // Age validation
-      if (validation.minAge !== undefined || validation.maxAge !== undefined) {
-        const birthDate = selectedDate;
-        const age = Math.floor((today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-        
-        if (validation.minAge !== undefined && age < validation.minAge) {
-          return `You must be at least ${validation.minAge} years old`;
-        }
-        
-        if (validation.maxAge !== undefined && age > validation.maxAge) {
-          return `You must be no more than ${validation.maxAge} years old`;
-        }
-      }
-    }
-
-    return null;
-  };
+  // Note: Using comprehensive validation from fieldValidation.ts
 
   const getFieldsInContainer = (containerId: string, column?: 'left' | 'right') => {
     const container = containers.find(c => c.id === containerId);
@@ -222,47 +217,21 @@ export function FormPreviewLive({
     if (!isFieldVisible(field)) return null;
 
     const value = formData[field.id] || '';
-    const fieldStyle = field.style || {};
+    const fieldStyle = mergeFieldStyles({}, field.style || {});
     const labelPosition = fieldStyle.labelPosition || 'outside';
     const error = validateField(field, value);
 
-    // Build dynamic classes
-    const fieldWrapperClasses = [
-      'mb-4',
-      fieldStyle.marginBottom || '',
-      fieldStyle.width || 'w-full',
-    ].filter(Boolean).join(' ');
-
-    // Build CSS classes and inline styles
-    const labelClasses = [
-      'block text-sm mb-1',
-      fieldStyle.labelAlignment === 'center' ? 'text-center' :
-      fieldStyle.labelAlignment === 'right' ? 'text-right' : 'text-left',
-    ].filter(Boolean).join(' ');
-
-    const inputClasses = [
-      'w-full border focus:outline-none focus:ring-2 transition-colors',
-    ].filter(Boolean).join(' ');
-
-    // Convert Tailwind classes to inline styles for proper application
-    const labelStyle = {
-      ...tailwindToCSS(fieldStyle.labelColor || 'text-gray-700'),
-      ...tailwindToCSS(fieldStyle.labelWeight || 'font-medium'),
-      ...tailwindToCSS(fieldStyle.fontSize || 'text-base'),
-    };
-
-    const inputStyle = {
-      ...tailwindToCSS(fieldStyle.inputBorderColor || 'border-gray-300'),
-      ...tailwindToCSS(fieldStyle.inputBorderRadius || 'rounded-md'),
-      ...tailwindToCSS(fieldStyle.inputBackgroundColor || 'bg-white'),
-      ...tailwindToCSS(fieldStyle.inputPadding || 'px-3 py-2'),
-      ...tailwindToCSS(fieldStyle.inputHeight || ''),
-      ...tailwindToCSS(fieldStyle.fontSize || 'text-base'),
-    };
+    // Generate CSS styles using our utility functions
+    const containerStyle = { ...fieldContainerToCSS(fieldStyle), ...globalStyle };
+    const labelStyle = { ...fieldLabelToCSS(fieldStyle), ...globalStyle };
+    const inputStyle = { ...fieldInputToCSS(fieldStyle), ...globalStyle };
+    
+    // Generate unique class name for focus styles
+    const inputClassName = `field-input-${field.id}`;
 
     if (field.type === 'separator') {
       return (
-        <div key={field.id} className={fieldWrapperClasses}>
+        <div key={field.id} style={containerStyle}>
           <div className="my-6">
             {field.label && field.label !== 'Separator' && (
               <h3 className="text-lg font-medium text-gray-900 mb-2">{field.label}</h3>
@@ -277,17 +246,27 @@ export function FormPreviewLive({
     }
 
     const renderLabel = () => {
-      if (labelPosition === 'hidden') return null;
+      if (labelPosition === 'hidden' || !field.label || field.label.trim() === '') return null;
       return (
-        <label className={labelClasses} style={labelStyle}>
+        <label style={labelStyle}>
           {field.label}
-          {field.required && <span className="text-red-500 ml-1">*</span>}
+          {field.required && <span style={{ color: '#ef4444', marginLeft: '4px' }}>*</span>}
         </label>
       );
     };
 
     const renderInput = () => {
-      const placeholder = labelPosition === 'inside' ? field.label : field.placeholder;
+      let placeholder = labelPosition === 'inside' ? field.label : field.placeholder;
+      
+      // If no label is present but field is required, add asterisk to placeholder
+      if ((!field.label || field.label.trim() === '') && field.required && placeholder) {
+        placeholder = `${placeholder} *`;
+      }
+      
+      // If no label and no placeholder but field is required, show generic required placeholder
+      if ((!field.label || field.label.trim() === '') && (!placeholder || placeholder.trim() === '') && field.required) {
+        placeholder = 'Required *';
+      }
 
       switch (field.type) {
         case 'text':
@@ -305,8 +284,12 @@ export function FormPreviewLive({
                 value={typeof value === 'string' ? value : ''}
                 onChange={(e) => handleInputChange(field.id, e.target.value, field)}
                 placeholder={placeholder}
-                className={`${inputClasses} ${fieldStyle.icon ? 'pl-10' : ''} ${error ? 'border-red-300' : ''}`}
-                style={inputStyle}
+                className={inputClassName}
+                style={{
+                  ...inputStyle,
+                  ...(fieldStyle.icon && { paddingLeft: '40px' }),
+                  ...(error && { borderColor: '#ef4444' }),
+                }}
               />
             </div>
           );
@@ -318,8 +301,8 @@ export function FormPreviewLive({
               onChange={(e) => handleInputChange(field.id, e.target.value, field)}
               placeholder={placeholder}
               rows={field.rows || 4}
-              className={`${inputClasses} resize-vertical`}
-              style={inputStyle}
+              className={inputClassName}
+              style={{ ...inputStyle, resize: 'vertical' }}
             />
           );
 
@@ -332,78 +315,44 @@ export function FormPreviewLive({
               placeholder={placeholder}
               min={field.validation?.min}
               max={field.validation?.max}
-              className={inputClasses}
+              className={inputClassName}
               style={inputStyle}
             />
           );
 
         case 'date':
-          const dateFormat = field.validation?.dateFormat || 'YYYY-MM-DD';
-          const customDateFormat = field.validation?.customDateFormat;
-          const displayValue = formData[`${field.id}_display`] as string || '';
-          const actualValue = typeof value === 'string' ? value : '';
-          
-          if (dateFormat === 'YYYY-MM-DD') {
-            // Standard HTML date input
-            return (
-              <div className="relative">
-                {fieldStyle.icon && (
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-400 text-sm">{fieldStyle.icon}</span>
-                  </div>
-                )}
-                <input
-                  type="date"
-                  value={actualValue}
-                  onChange={(e) => handleInputChange(field.id, e.target.value, field)}
-                  min={field.validation?.minDate}
-                  max={field.validation?.maxDate}
-                  className={`${inputClasses} ${fieldStyle.icon ? 'pl-10' : ''} ${error ? 'border-red-300' : ''}`}
-                  style={inputStyle}
-                />
-              </div>
-            );
-          } else {
-            // Custom formatted date input
-            return (
-              <div className="relative">
-                {fieldStyle.icon && (
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-400 text-sm">{fieldStyle.icon}</span>
-                  </div>
-                )}
-                <input
-                  type="text"
-                  value={displayValue}
-                  onChange={(e) => {
-                    const inputValue = e.target.value;
-                    const isoValue = parseDateValue(inputValue, dateFormat, customDateFormat);
-                    setFormData(prev => ({ 
-                      ...prev, 
-                      [field.id]: isoValue,
-                      [`${field.id}_display`]: inputValue
-                    }));
-                  }}
-                  placeholder={getDatePlaceholder(dateFormat, customDateFormat)}
-                  className={`${inputClasses} ${fieldStyle.icon ? 'pl-10' : ''} ${error ? 'border-red-300' : ''}`}
-                  style={inputStyle}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Format: {customDateFormat || dateFormat}
-                </p>
-              </div>
-            );
-          }
+          return (
+            <DatePicker
+              value={typeof value === 'string' ? value : ''}
+              onChange={(dateValue) => handleInputChange(field.id, dateValue, field)}
+              validation={field.validation}
+              placeholder={placeholder}
+              className={inputClassName}
+              style={inputStyle}
+              icon={fieldStyle.icon}
+            />
+          );
 
         case 'dropdown':
+          // Generate unique ID for this dropdown's styles
+          const dropdownId = `dropdown-${field.id}`;
+          
           return (
             <select
+              id={dropdownId}
               value={typeof value === 'string' ? value : ''}
               onChange={(e) => handleInputChange(field.id, e.target.value, field)}
-              className={inputClasses}
-              style={inputStyle}
+              className={inputClassName}
+              style={{
+                ...inputStyle,
+                maxHeight: fieldStyle.dropdownMaxHeight || '200px',
+                borderColor: fieldStyle.dropdownBorderColor || inputStyle.borderColor,
+                boxShadow: fieldStyle.dropdownShadow ? `var(--tw-${fieldStyle.dropdownShadow})` : inputStyle.boxShadow
+              }}
             >
-              <option value="">{placeholder || 'Select an option...'}</option>
+              <option value="">
+                {placeholder || (field.required ? 'Select an option... *' : 'Select an option...')}
+              </option>
               {field.options?.map((option: FieldOption) => (
                 <option key={option.id} value={option.value}>
                   {option.label}
@@ -413,45 +362,223 @@ export function FormPreviewLive({
           );
 
         case 'radio':
-          return (
-            <div className="space-y-2">
-              {field.options?.map((option: FieldOption) => (
-                <label key={option.id} className="flex items-center">
-                  <input
-                    type="radio"
-                    name={field.id}
-                    value={option.value}
-                    checked={value === option.value}
-                    onChange={(e) => handleInputChange(field.id, e.target.value, field)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                  <span className="ml-2 text-sm text-gray-900">{option.label}</span>
-                </label>
-              ))}
-            </div>
-          );
+          const radioStyle = fieldStyle.checkboxStyle || 'default'; // Reuse checkbox style setting
+          
+          if (radioStyle === 'bordered') {
+            const borderStyle = {
+              borderColor: fieldStyle.checkboxBorderColor || fieldStyle.inputBorderColor || '#d1d5db',
+              borderWidth: fieldStyle.checkboxBorderWidth || fieldStyle.inputBorderWidth || '1px',
+              borderRadius: fieldStyle.checkboxBorderRadius || fieldStyle.inputBorderRadius || '6px',
+              backgroundColor: fieldStyle.checkboxBackgroundColor || fieldStyle.inputBackgroundColor || '#ffffff',
+              padding: fieldStyle.checkboxPadding || fieldStyle.inputPadding || '12px 16px',
+            };
+            
+            return (
+              <div className="space-y-2">
+                {field.options?.map((option: FieldOption) => (
+                  <label 
+                    key={option.id} 
+                    className="flex items-center border cursor-pointer transition-colors"
+                    style={{
+                      ...borderStyle,
+                      backgroundColor: value === option.value 
+                        ? fieldStyle.dropdownSelectedColor || borderStyle.backgroundColor
+                        : borderStyle.backgroundColor,
+                      color: fieldStyle.dropdownOptionTextColor || '#374151',
+                      padding: fieldStyle.dropdownOptionPadding || borderStyle.padding
+                    }}
+                    onMouseEnter={(e) => {
+                      if (value !== option.value) {
+                        e.currentTarget.style.backgroundColor = fieldStyle.dropdownHoverColor || '#f3f4f6';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (value !== option.value) {
+                        e.currentTarget.style.backgroundColor = borderStyle.backgroundColor;
+                      }
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name={field.id}
+                      value={option.value}
+                      checked={value === option.value}
+                      onChange={(e) => handleInputChange(field.id, e.target.value, field)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <span 
+                      className="ml-3 text-sm" 
+                      style={{
+                        ...globalStyle,
+                        color: fieldStyle.dropdownOptionTextColor || '#374151'
+                      }}
+                    >
+                      {option.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            );
+          } else {
+            // Default style with enhanced styling options
+            return (
+              <div className="space-y-2">
+                {field.options?.map((option: FieldOption) => (
+                  <label 
+                    key={option.id} 
+                    className="flex items-center cursor-pointer transition-colors rounded"
+                    style={{
+                      backgroundColor: value === option.value 
+                        ? fieldStyle.dropdownSelectedColor || 'transparent'
+                        : 'transparent',
+                      padding: fieldStyle.dropdownOptionPadding || '8px 12px',
+                      color: fieldStyle.dropdownOptionTextColor || '#374151'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (value !== option.value) {
+                        e.currentTarget.style.backgroundColor = fieldStyle.dropdownHoverColor || '#f3f4f6';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (value !== option.value) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name={field.id}
+                      value={option.value}
+                      checked={value === option.value}
+                      onChange={(e) => handleInputChange(field.id, e.target.value, field)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                    />
+                    <span 
+                      className="ml-2 text-sm" 
+                      style={{
+                        ...globalStyle,
+                        color: fieldStyle.dropdownOptionTextColor || '#374151'
+                      }}
+                    >
+                      {option.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            );
+          }
 
         case 'checkbox':
-          return (
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={typeof value === 'boolean' ? value : false}
-                onChange={(e) => handleInputChange(field.id, e.target.checked)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <span className="ml-2 text-sm text-gray-900">{field.label}</span>
-            </label>
-          );
+          let checkboxText = fieldStyle.checkboxText || field.label;
+          
+          // If no label and no custom checkbox text but field is required, add asterisk to checkbox text
+          if ((!field.label || field.label.trim() === '') && (!fieldStyle.checkboxText || fieldStyle.checkboxText.trim() === '') && field.required) {
+            checkboxText = 'Required *';
+          } else if ((!field.label || field.label.trim() === '') && fieldStyle.checkboxText && field.required && !fieldStyle.checkboxText.includes('*')) {
+            checkboxText = `${fieldStyle.checkboxText} *`;
+          }
+          
+          const checkboxAlignment = fieldStyle.checkboxAlignment || 'left';
+          const checkboxStyle = fieldStyle.checkboxStyle || 'default';
+          
+          if (checkboxStyle === 'bordered') {
+            const borderStyle = {
+              borderColor: fieldStyle.checkboxBorderColor || fieldStyle.inputBorderColor || '#d1d5db',
+              borderWidth: fieldStyle.checkboxBorderWidth || fieldStyle.inputBorderWidth || '1px',
+              borderRadius: fieldStyle.checkboxBorderRadius || fieldStyle.inputBorderRadius || '6px',
+              backgroundColor: fieldStyle.checkboxBackgroundColor || fieldStyle.inputBackgroundColor || '#ffffff',
+              padding: fieldStyle.checkboxPadding || fieldStyle.inputPadding || '12px 16px',
+            };
+            
+            return (
+              <label 
+                className={`flex items-center border cursor-pointer transition-colors hover:bg-gray-50 ${
+                  checkboxAlignment === 'right' ? 'flex-row-reverse' : ''
+                }`}
+                style={borderStyle}
+              >
+                <input
+                  type="checkbox"
+                  checked={typeof value === 'boolean' ? value : false}
+                  onChange={(e) => handleInputChange(field.id, e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span 
+                  className={`text-sm text-gray-900 ${checkboxAlignment === 'right' ? 'mr-3' : 'ml-3'}`}
+                  style={globalStyle}
+                >
+                  {checkboxText}
+                </span>
+              </label>
+            );
+          } else {
+            // Default style (existing behavior)
+            return (
+              <label className={`flex items-center ${checkboxAlignment === 'right' ? 'flex-row-reverse' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={typeof value === 'boolean' ? value : false}
+                  onChange={(e) => handleInputChange(field.id, e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span 
+                  className={`text-sm text-gray-900 ${checkboxAlignment === 'right' ? 'mr-2' : 'ml-2'}`}
+                  style={globalStyle}
+                >
+                  {checkboxText}
+                </span>
+              </label>
+            );
+          }
 
         case 'file':
+          const fileName = value instanceof File ? value.name : '';
+          const fileDisplayText = fileName || placeholder || 'Choose file...';
+          
           return (
-            <input
-              type="file"
-              onChange={(e) => handleInputChange(field.id, e.target.files?.[0] || null)}
-              className={inputClasses}
-              style={inputStyle}
-            />
+            <div className="relative">
+              <div 
+                className={`${inputClassName} cursor-pointer flex items-center justify-between`}
+                style={{
+                  ...inputStyle,
+                  ...(fieldStyle.icon && { paddingLeft: '40px' }),
+                  paddingRight: '40px'
+                }}
+                onClick={() => {
+                  const fileInput = document.getElementById(`file-${field.id}`) as HTMLInputElement;
+                  fileInput?.click();
+                }}
+              >
+                {fieldStyle.icon && (
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-400 text-sm" style={globalStyle}>{fieldStyle.icon}</span>
+                  </div>
+                )}
+                <span 
+                  className={fileName ? 'text-gray-900' : 'text-gray-500'}
+                  style={{
+                    ...globalStyle,
+                    fontSize: inputStyle.fontSize,
+                    color: fileName ? inputStyle.color : '#9ca3af'
+                  }}
+                >
+                  {fileDisplayText}
+                </span>
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <span className="text-gray-400 text-sm" style={globalStyle}>📁</span>
+                </div>
+              </div>
+              <input
+                id={`file-${field.id}`}
+                type="file"
+                onChange={(e) => handleInputChange(field.id, e.target.files?.[0] || null)}
+                className="hidden"
+                accept={field.validation?.fileTypes ? 
+                  field.validation.fileTypes.map((type: string) => `.${type.trim()}`).join(',') : 
+                  undefined
+                }
+              />
+            </div>
           );
 
         default:
@@ -469,7 +596,7 @@ export function FormPreviewLive({
                   value={typeof value === 'string' ? value : ''}
                   onChange={(e) => handleInputChange(field.id, e.target.value, field)}
                   placeholder={placeholder}
-                  className={`${inputClasses} ${fieldStyle.icon ? 'pl-10' : ''} ${error ? 'border-red-300' : ''}`}
+                  className={inputClassName}
                   style={inputStyle}
                 />
               </div>
@@ -480,17 +607,17 @@ export function FormPreviewLive({
     };
 
     return (
-      <div key={field.id} className={fieldWrapperClasses}>
+      <div key={field.id} style={containerStyle}>
         {labelPosition === 'outside' && renderLabel()}
         {field.description && labelPosition === 'outside' && (
-          <p className="text-sm text-gray-500 mb-2">{field.description}</p>
+          <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px', ...globalStyle }}>{field.description}</p>
         )}
         {renderInput()}
         {field.description && labelPosition !== 'outside' && (
-          <p className="text-sm text-gray-500 mt-1">{field.description}</p>
+          <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px', ...globalStyle }}>{field.description}</p>
         )}
         {error && (
-          <p className="text-sm text-red-600 mt-1">{error}</p>
+          <p style={{ fontSize: '14px', color: '#dc2626', marginTop: '4px', ...globalStyle }}>{error}</p>
         )}
       </div>
     );
@@ -503,15 +630,15 @@ export function FormPreviewLive({
 
     if (container.type === 'two-column') {
       return (
-        <div key={container.id} className="mb-6">
+        <div key={container.id} className="mb-8">
           <div 
-            className="grid grid-cols-2"
+            className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6"
             style={containerStyle}
           >
-            <div className="space-y-4">
+            <div className="space-y-6">
               {getFieldsInContainer(container.id, 'left').map(renderField)}
             </div>
-            <div className="space-y-4">
+            <div className="space-y-6">
               {getFieldsInContainer(container.id, 'right').map(renderField)}
             </div>
           </div>
@@ -519,8 +646,8 @@ export function FormPreviewLive({
       );
     } else {
       return (
-        <div key={container.id} className="mb-6">
-          <div className="space-y-4">
+        <div key={container.id} className="mb-8">
+          <div className="space-y-6">
             {getFieldsInContainer(container.id).map(renderField)}
           </div>
         </div>
@@ -530,18 +657,37 @@ export function FormPreviewLive({
 
   // Apply custom font family globally
   const globalStyle = formDesign.fontFamily === 'custom' && formDesign.customFontFamily
-    ? { fontFamily: formDesign.customFontFamily }
+    ? { fontFamily: `"${formDesign.customFontFamily}", sans-serif` }
     : {};
 
-  // Apply form design
+  // Apply form design with CSS values
+  const isHexColor = (color: string) => /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
+  
+  const formStyle: React.CSSProperties = {
+    backgroundColor: isHexColor(formDesign.backgroundColor || '') 
+      ? formDesign.backgroundColor 
+      : undefined,
+    border: '1px solid #e5e7eb',
+    borderRadius: formDesign.borderRadius?.includes('px') 
+      ? formDesign.borderRadius 
+      : undefined,
+    boxShadow: formDesign.boxShadow?.includes('shadow') 
+      ? undefined 
+      : formDesign.boxShadow,
+    padding: formDesign.padding?.includes('px') 
+      ? formDesign.padding 
+      : undefined,
+    ...globalStyle,
+  };
+
   const formClasses = [
-    'border border-gray-200',
-    formDesign.backgroundColor || 'bg-white',
+    // Only add Tailwind classes for non-CSS values
+    !isHexColor(formDesign.backgroundColor || '') ? (formDesign.backgroundColor || 'bg-white') : '',
     formDesign.fontFamily !== 'custom' ? (formDesign.fontFamily || 'font-sans') : '',
     formDesign.fontSize || 'text-base',
-    formDesign.padding || 'p-8',
-    formDesign.borderRadius || 'rounded-lg',
-    formDesign.boxShadow || 'shadow-sm',
+    !formDesign.padding?.includes('px') ? (formDesign.padding || 'p-8') : '',
+    !formDesign.borderRadius?.includes('px') ? (formDesign.borderRadius || 'rounded-lg') : '',
+    formDesign.boxShadow?.includes('shadow') ? (formDesign.boxShadow || 'shadow-sm') : '',
   ].filter(Boolean).join(' ');
 
   const containerClasses = [
@@ -553,17 +699,47 @@ export function FormPreviewLive({
     gap: formDesign.spacing?.rowGap || '1.5rem',
   };
 
-  // Submit button styling
+  // Submit button styling with CSS values
   const submitButton = formDesign.submitButton || {};
+  const submitButtonPadding = parsePadding(submitButton.padding || '12px 24px');
+  
+  const submitButtonStyle: React.CSSProperties = {
+    backgroundColor: isHexColor(submitButton.backgroundColor || '') 
+      ? submitButton.backgroundColor 
+      : undefined,
+    color: isHexColor(submitButton.textColor || '') 
+      ? submitButton.textColor 
+      : undefined,
+    paddingTop: submitButton.padding?.includes('px') ? submitButtonPadding.top : undefined,
+    paddingRight: submitButton.padding?.includes('px') ? submitButtonPadding.right : undefined,
+    paddingBottom: submitButton.padding?.includes('px') ? submitButtonPadding.bottom : undefined,
+    paddingLeft: submitButton.padding?.includes('px') ? submitButtonPadding.left : undefined,
+    borderRadius: submitButton.borderRadius?.includes('px') 
+      ? submitButton.borderRadius 
+      : undefined,
+    fontSize: submitButton.fontSize?.includes('px') 
+      ? submitButton.fontSize 
+      : undefined,
+    fontWeight: ['normal', 'medium', 'semibold', 'bold'].includes(submitButton.fontWeight || '') 
+      ? { normal: '400', medium: '500', semibold: '600', bold: '700' }[submitButton.fontWeight as string]
+      : undefined,
+    width: submitButton.width === 'full' ? '100%' : 'auto',
+    display: submitButton.width === 'auto' ? 'inline-block' : 'block',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'opacity 0.2s ease-in-out',
+  };
+
   const submitButtonClasses = [
-    submitButton.width === 'auto' ? 'inline-block' : 'w-full',
-    submitButton.backgroundColor || 'bg-blue-600',
-    submitButton.textColor || 'text-white',
-    submitButton.padding || 'py-3 px-4',
-    submitButton.borderRadius || 'rounded-md',
-    submitButton.fontSize || 'text-base',
-    submitButton.fontWeight || 'font-medium',
-    'hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all cursor-pointer',
+    // Only add Tailwind classes for non-CSS values
+    !isHexColor(submitButton.backgroundColor || '') ? (submitButton.backgroundColor || 'bg-blue-600') : '',
+    !isHexColor(submitButton.textColor || '') ? (submitButton.textColor || 'text-white') : '',
+    !submitButton.padding?.includes('px') ? (submitButton.padding || 'py-3 px-4') : '',
+    !submitButton.borderRadius?.includes('px') ? (submitButton.borderRadius || 'rounded-md') : '',
+    !submitButton.fontSize?.includes('px') ? (submitButton.fontSize || 'text-base') : '',
+    !['normal', 'medium', 'semibold', 'bold'].includes(submitButton.fontWeight || '') 
+      ? (submitButton.fontWeight || 'font-medium') : '',
+    'hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all',
   ].filter(Boolean).join(' ');
 
   const submitButtonContainerClasses = [
@@ -574,7 +750,7 @@ export function FormPreviewLive({
 
   return (
     <div className={containerClasses} style={globalStyle}>
-      <div className={formClasses} style={globalStyle}>
+      <div className={formClasses} style={{ ...formStyle, ...globalStyle }}>
         <div className="mb-8">
           {formDesign.logoUrl && (
             <div className="mb-6">
@@ -588,22 +764,22 @@ export function FormPreviewLive({
               />
             </div>
           )}
-          <h1 className="text-2xl font-bold text-gray-900 mb-2" style={globalStyle}>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 text-center" style={globalStyle}>
             {formTitle}
           </h1>
           {formDescription && (
-            <p className="text-gray-600" style={globalStyle}>
+            <p className="text-gray-600 text-center text-lg mb-8" style={globalStyle}>
               {formDescription}
             </p>
           )}
         </div>
 
-        <form className="space-y-6" style={{ ...fieldsSpacing, ...globalStyle }}>
+        <form className="space-y-8" style={{ ...fieldsSpacing, ...globalStyle }}>
           {/* Layout Containers */}
           {containers.map(renderContainer)}
 
           {/* Standalone Fields */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             {getStandaloneFields().map(renderField)}
           </div>
 
@@ -611,7 +787,7 @@ export function FormPreviewLive({
             <button
               type="submit"
               className={submitButtonClasses}
-              style={globalStyle}
+              style={{ ...submitButtonStyle, ...globalStyle }}
             >
               {submitButton.text || 'Submit Form'}
             </button>

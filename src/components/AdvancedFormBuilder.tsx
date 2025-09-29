@@ -5,7 +5,7 @@ import { FormFieldData, FormFieldType, FormSchema, FormDesign, LayoutContainer }
 import { StructurePalette } from './structure/StructurePalette';
 import { ThemeInspector } from './design/ThemeInspector';
 import { FieldDesignInspector } from './design/FieldDesignInspector';
-import { FormPreview } from './preview/FormPreview';
+import { FormPreviewLive } from './FormPreviewLive';
 import { convertFieldStyleToCSS, convertFormDesignToCSS } from '@/utils/tailwindToCss';
 
 type ViewMode = 'builder' | 'preview';
@@ -361,7 +361,7 @@ export function AdvancedFormBuilder() {
     );
   };
 
-  if (viewMode === 'preview' && formSchema) {
+  if (viewMode === 'preview') {
     return (
       <div className="h-screen flex flex-col">
         <div className="bg-white border-b border-gray-200 p-4">
@@ -376,7 +376,13 @@ export function AdvancedFormBuilder() {
           </div>
         </div>
         <div className="flex-1 overflow-auto">
-          <FormPreview schema={formSchema} />
+          <FormPreviewLive
+            fields={fields}
+            containers={containers}
+            formTitle={formTitle}
+            formDescription={formDescription}
+            formDesign={formDesign}
+          />
         </div>
       </div>
     );
@@ -547,6 +553,7 @@ export function AdvancedFormBuilder() {
       ) : (
         <FieldDesignInspector
           selectedField={selectedField}
+          allFields={fields}
           onUpdateField={(updates) => {
             if (selectedField) {
               updateField(selectedField.id, updates);
