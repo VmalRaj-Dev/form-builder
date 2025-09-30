@@ -4,6 +4,9 @@
 import React, { useState } from 'react';
 import { FormSchema, FormFieldData } from '@/types/form';
 import Image from 'next/image';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { RichTextCheckbox } from '@/components/ui/RichTextCheckbox';
+import { TermsAndConditions } from '@/components/ui/TermsAndConditions';
 
 interface FormPreviewProps {
   schema: FormSchema;
@@ -34,11 +37,16 @@ export function FormPreview({ schema }: FormPreviewProps) {
     if (field.validation) {
       const { validation } = field;
       
-      if (field.type === 'text' || field.type === 'longtext') {
-        if (validation.minLength && value && value.length < validation.minLength) {
+      if (field.type === 'text' || field.type === 'longtext' || field.type === 'richtext') {
+        // For rich text, we need to strip HTML tags to get actual text length
+        const textLength = field.type === 'richtext' && value ? 
+          value.replace(/<[^>]*>/g, '').trim().length : 
+          (value ? value.length : 0);
+          
+        if (validation.minLength && textLength < validation.minLength) {
           return validation.message || `${field.label} must be at least ${validation.minLength} characters`;
         }
-        if (validation.maxLength && value && value.length > validation.maxLength) {
+        if (validation.maxLength && textLength > validation.maxLength) {
           return validation.message || `${field.label} must be no more than ${validation.maxLength} characters`;
         }
       }
@@ -169,6 +177,31 @@ export function FormPreview({ schema }: FormPreviewProps) {
           </div>
         );
 
+      case 'richtext':
+        return (
+          <div key={field.id} className="space-y-2">
+            <label className={labelClasses}>
+              {field.label}
+              {field.required && <span className="text-red-500 ml-1">*</span>}
+            </label>
+            {field.description && (
+              <p className="text-sm text-gray-500">{field.description}</p>
+            )}
+            <RichTextEditor
+              value={value || ''}
+              onChange={(newValue) => handleInputChange(field.id, newValue)}
+              placeholder={field.placeholder || 'Start typing...'}
+              minHeight={(field as any).minHeight || '120px'}
+              maxHeight={(field as any).maxHeight || '400px'}
+              toolbar={(field as any).toolbar || 'basic'}
+              allowLinks={(field as any).allowLinks !== false}
+              allowFormatting={(field as any).allowFormatting !== false}
+              error={!!error}
+            />
+            {error && <p className="text-sm text-red-600">{error}</p>}
+          </div>
+        );
+
       case 'number':
         return (
           <div key={field.id} className="space-y-2">
@@ -254,26 +287,20 @@ export function FormPreview({ schema }: FormPreviewProps) {
 
       case 'checkbox':
         return (
-          <div key={field.id} className="space-y-2">
-            <div className="flex items-start space-x-3">
-              <input
-                type="checkbox"
-                checked={value || false}
-                onChange={(e) => handleInputChange(field.id, e.target.checked)}
-                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  {field.label}
-                  {field.required && <span className="text-red-500 ml-1">*</span>}
-                </label>
-                {field.description && (
-                  <p className="text-sm text-gray-500 mt-1">{field.description}</p>
-                )}
-              </div>
-            </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-          </div>
+          <RichTextCheckbox
+            key={field.id}
+            id={field.id}
+            checked={value || false}
+            onChange={(checked) => handleInputChange(field.id, checked)}
+            label={field.label}
+            description={field.description}
+            richTextContent={(field as any).richTextContent}
+            linkText={(field as any).linkText}
+            linkUrl={(field as any).linkUrl}
+            useRichText={(field as any).useRichText || false}
+            required={field.required}
+            error={error}
+          />
         );
 
       case 'file':
@@ -324,6 +351,21 @@ export function FormPreview({ schema }: FormPreviewProps) {
             )}
             <hr className="border-gray-300" />
           </div>
+        );
+
+      case 'terms':
+        return (
+          <TermsAndConditions
+            key={field.id}
+            id={field.id}
+            mode={(field as any).mode || 'checkbox'}
+            content={(field as any).content || ''}
+            links={(field as any).links || []}
+            checked={value || false}
+            onChange={(checked) => handleInputChange(field.id, checked)}
+            required={field.required}
+            error={error}
+          />
         );
 
       default:

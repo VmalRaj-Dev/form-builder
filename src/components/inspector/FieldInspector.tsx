@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FormFieldData, SelectOption, ValidationRule } from '@/types/form';
+import { FormFieldData, FieldOption, ValidationRule, SelectOption } from '@/types/form';
+import { CheckboxRichTextEditor } from '@/components/ui/CheckboxRichTextEditor';
+import { CSVUploader } from '@/components/ui/CSVUploader';
+import { CSVOption } from '@/utils/csvParser';
 
 interface FieldInspectorProps {
   selectedField: FormFieldData | null;
@@ -175,6 +178,25 @@ export function FieldInspector({ selectedField, onUpdateField }: FieldInspectorP
                 </div>
               ))}
             </div>
+            
+            {/* CSV Upload for Options */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <CSVUploader
+                onOptionsImported={(csvOptions: CSVOption[]) => {
+                  const newOptions: SelectOption[] = csvOptions.map(csvOpt => ({
+                    id: csvOpt.id,
+                    label: csvOpt.label,
+                    value: csvOpt.value
+                  }));
+                  updateField('options', newOptions);
+                }}
+                currentOptions={localField.options?.map(opt => ({
+                  id: opt.id,
+                  label: opt.label,
+                  value: opt.value
+                })) || []}
+              />
+            </div>
           </div>
         )}
 
@@ -195,12 +217,127 @@ export function FieldInspector({ selectedField, onUpdateField }: FieldInspectorP
           </div>
         )}
 
+        {/* Rich Text Specific */}
+        {localField.type === 'richtext' && (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Toolbar
+              </label>
+              <select
+                value={(localField as any).toolbar || 'basic'}
+                onChange={(e) => updateField('toolbar', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="minimal">Minimal</option>
+                <option value="basic">Basic</option>
+                <option value="full">Full</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Min Height</label>
+                <input
+                  type="text"
+                  value={(localField as any).minHeight || '120px'}
+                  onChange={(e) => updateField('minHeight', e.target.value)}
+                  placeholder="120px"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Max Height</label>
+                <input
+                  type="text"
+                  value={(localField as any).maxHeight || '400px'}
+                  onChange={(e) => updateField('maxHeight', e.target.value)}
+                  placeholder="400px"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={(localField as any).allowLinks !== false}
+                  onChange={(e) => updateField('allowLinks', e.target.checked)}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700">Allow Links</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={(localField as any).allowFormatting !== false}
+                  onChange={(e) => updateField('allowFormatting', e.target.checked)}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700">Allow Formatting</span>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Checkbox Specific */}
+        {localField.type === 'checkbox' && (
+          <div className="space-y-3">
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={(localField as any).useRichText || false}
+                  onChange={(e) => updateField('useRichText', e.target.checked)}
+                  className="mr-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Use Rich Text Content</span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1">Enable rich text editor for terms & conditions</p>
+            </div>
+
+            {(localField as any).useRichText ? (
+              <CheckboxRichTextEditor
+                value={(localField as any).richTextContent || ''}
+                onChange={(value) => updateField('richTextContent', value)}
+                placeholder="I agree to the terms and conditions..."
+              />
+            ) : (
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Link Text (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={(localField as any).linkText || ''}
+                    onChange={(e) => updateField('linkText', e.target.value)}
+                    placeholder="e.g., Terms and Conditions"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Link URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={(localField as any).linkUrl || ''}
+                    onChange={(e) => updateField('linkUrl', e.target.value)}
+                    placeholder="https://example.com/terms"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Validation Rules */}
         {localField.type !== 'separator' && (
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-3">Validation</h4>
             <div className="space-y-3">
-              {(localField.type === 'text' || localField.type === 'longtext') && (
+              {(localField.type === 'text' || localField.type === 'longtext' || localField.type === 'richtext') && (
                 <>
                   <div className="grid grid-cols-2 gap-2">
                     <div>

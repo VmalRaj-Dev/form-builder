@@ -56,6 +56,19 @@ export function AdvancedFormBuilder() {
         ]
       } : {}),
       ...(type === 'longtext' ? { rows: 4 } : {}),
+      ...(type === 'richtext' ? { 
+        minHeight: '120px', 
+        maxHeight: '400px', 
+        toolbar: 'basic',
+        allowLinks: true,
+        allowFormatting: true 
+      } : {}),
+      ...(type === 'checkbox' ? {
+        useRichText: false,
+        richTextContent: '',
+        linkText: '',
+        linkUrl: ''
+      } : {}),
     } as FormFieldData;
 
     setFields(prev => [...prev, newField]);
