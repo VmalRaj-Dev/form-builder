@@ -101,6 +101,27 @@ export function EditableFormBuilder() {
           dateFormat: 'MM/DD/YYYY' as const
         }
       } : {}),
+      ...(type === 'richtext' ? { 
+        minHeight: '120px', 
+        maxHeight: '400px', 
+        toolbar: 'basic',
+        allowLinks: true,
+        allowFormatting: true 
+      } : {}),
+      ...(type === 'checkbox' ? {
+        useRichText: false,
+        richTextContent: '',
+        linkText: '',
+        linkUrl: ''
+      } : {}),
+      ...(type === 'terms' ? {
+        mode: 'checkbox',
+        content: 'By entering the Contest I agree to the Terms & Conditions and authorize Home Hardware Stores Limited to collect the personal information disclosed in this form, and any additional information as described in the Terms & Conditions, for the purpose of administering the Contest and maintaining an accurate customer database. I understand that this information will be managed in accordance with the Home Hardware Stores Limited Privacy Policy. For Quebec Residents: Your personal information may be transferred outside of Quebec.',
+        links: [
+          { id: 'terms', text: 'Terms & Conditions', url: 'https://example.com/terms' },
+          { id: 'privacy', text: 'Privacy Policy', url: 'https://example.com/privacy' }
+        ]
+      } : {}),
     } as FormFieldData;
 
     setFields(prev => [...prev, newField]);
@@ -583,6 +604,7 @@ export function EditableFormBuilder() {
             {[
               { type: 'text', icon: '📝', label: 'Text' },
               { type: 'longtext', icon: '📄', label: 'Long Text' },
+              { type: 'richtext', icon: '✏️', label: 'Rich Text' },
               { type: 'email', icon: '📧', label: 'Email' },
               { type: 'phone', icon: '📱', label: 'Phone' },
               { type: 'number', icon: '🔢', label: 'Number' },
@@ -591,6 +613,7 @@ export function EditableFormBuilder() {
               { type: 'dropdown', icon: '📋', label: 'Dropdown' },
               { type: 'radio', icon: '⚪', label: 'Radio' },
               { type: 'checkbox', icon: '☑️', label: 'Checkbox' },
+              { type: 'terms', icon: '📋', label: 'Terms & Conditions' },
               { type: 'file', icon: '📎', label: 'File' },
               { type: 'separator', icon: '➖', label: 'Separator' },
             ].map((field) => (

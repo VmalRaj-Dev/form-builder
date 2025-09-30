@@ -77,6 +77,7 @@ export interface FieldStyle {
 export type FormFieldType = 
   | 'text'
   | 'longtext'
+  | 'richtext'
   | 'email'
   | 'phone'
   | 'number'
@@ -86,7 +87,8 @@ export type FormFieldType =
   | 'radio'
   | 'checkbox'
   | 'file'
-  | 'separator';
+  | 'separator'
+  | 'terms';
 
 export type LayoutType = 'single-column' | 'two-column-left' | 'two-column-right' | 'standalone';
 
@@ -208,6 +210,15 @@ export interface LongTextFieldData extends FormFieldBase {
   rows?: number;
 }
 
+export interface RichTextFieldData extends FormFieldBase {
+  type: 'richtext';
+  minHeight?: string;
+  maxHeight?: string;
+  toolbar?: 'basic' | 'full' | 'minimal';
+  allowLinks?: boolean;
+  allowFormatting?: boolean;
+}
+
 export interface EmailFieldData extends FormFieldBase {
   type: 'email';
 }
@@ -236,6 +247,10 @@ export interface RadioFieldData extends FormFieldBase {
 
 export interface CheckboxFieldData extends FormFieldBase {
   type: 'checkbox';
+  useRichText?: boolean;
+  richTextContent?: string;
+  linkText?: string;
+  linkUrl?: string;
 }
 
 export interface FileFieldData extends FormFieldBase {
@@ -246,6 +261,22 @@ export interface FileFieldData extends FormFieldBase {
 
 export interface SeparatorFieldData extends FormFieldBase {
   type: 'separator';
+  separatorType?: 'line' | 'space' | 'text';
+  separatorText?: string;
+  separatorHeight?: string;
+}
+
+export interface TermsLink {
+  id: string;
+  text: string;
+  url: string;
+}
+
+export interface TermsFieldData extends FormFieldBase {
+  type: 'terms';
+  mode: 'checkbox' | 'radio' | 'text';
+  content: string;
+  links: TermsLink[];
 }
 
 export interface DateFieldData extends FormFieldBase {
@@ -257,6 +288,7 @@ export interface DateFieldData extends FormFieldBase {
 export type FormFieldData = 
   | TextFieldData
   | LongTextFieldData
+  | RichTextFieldData
   | EmailFieldData
   | PhoneFieldData
   | NumberFieldData
@@ -266,7 +298,8 @@ export type FormFieldData =
   | RadioFieldData
   | CheckboxFieldData
   | FileFieldData
-  | SeparatorFieldData;
+  | SeparatorFieldData
+  | TermsFieldData;
 
 export interface FormSchema {
   id: string;

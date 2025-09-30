@@ -4,6 +4,9 @@ import React, { useState, useRef } from 'react';
 import { FormFieldData, FieldStyle, ValidationRule } from '@/types/form';
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { NumberInput } from '@/components/ui/NumberInput';
+import { CSVUploader } from '@/components/ui/CSVUploader';
+import { CheckboxRichTextEditor } from '@/components/ui/CheckboxRichTextEditor';
+import { CSVOption } from '@/utils/csvParser';
 
 interface FieldDesignInspectorProps {
   selectedField: FormFieldData | null;
@@ -275,6 +278,182 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                     <strong>Preview:</strong> {'options' in selectedField && selectedField.options ? selectedField.options.length : 0} option{('options' in selectedField && selectedField.options && selectedField.options.length !== 1) ? 's' : ''} configured
                   </div>
                 )}
+
+                {/* CSV Upload for Options */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <CSVUploader
+                    onOptionsImported={(csvOptions: CSVOption[]) => {
+                      const newOptions = csvOptions.map(csvOpt => ({
+                        id: csvOpt.id,
+                        label: csvOpt.label,
+                        value: csvOpt.value
+                      }));
+                      onUpdateField({ options: newOptions });
+                    }}
+                    currentOptions={('options' in selectedField ? selectedField.options || [] : []).map(opt => ({
+                      id: opt.id,
+                      label: opt.label,
+                      value: opt.value
+                    }))}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Checkbox Rich Text Configuration */}
+            {selectedField.type === 'checkbox' && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Checkbox Content</h4>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={(selectedField as any).useRichText || false}
+                        onChange={(e) => onUpdateField({ useRichText: e.target.checked })}
+                        className="mr-2"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Use Rich Text Content</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">Enable rich text editor for terms & conditions</p>
+                  </div>
+
+                  {(selectedField as any).useRichText ? (
+                    <CheckboxRichTextEditor
+                      value={(selectedField as any).richTextContent || ''}
+                      onChange={(value) => onUpdateField({ richTextContent: value })}
+                      placeholder="I agree to the terms and conditions..."
+                    />
+                  ) : (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Link Text (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={(selectedField as any).linkText || ''}
+                          onChange={(e) => onUpdateField({ linkText: e.target.value })}
+                          placeholder="e.g., Terms and Conditions"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Link URL (Optional)
+                        </label>
+                        <input
+                          type="url"
+                          value={(selectedField as any).linkUrl || ''}
+                          onChange={(e) => onUpdateField({ linkUrl: e.target.value })}
+                          placeholder="https://example.com/terms"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Terms & Conditions Configuration */}
+            {selectedField.type === 'terms' && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Terms & Conditions</h4>
+                
+                <div className="space-y-4">
+                  {/* Mode Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Display Mode</label>
+                    <div className="flex space-x-2">
+                      {(['checkbox', 'radio', 'text'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => onUpdateField({ mode })}
+                          className={`px-3 py-2 text-sm rounded border ${
+                            (selectedField as any).mode === mode
+                              ? 'bg-blue-50 border-blue-300 text-blue-700'
+                              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {mode === 'checkbox' ? '☑️ Checkbox' : mode === 'radio' ? '⚪ Radio' : '📄 Text Only'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Terms Content</label>
+                    <textarea
+                      value={(selectedField as any).content || ''}
+                      onChange={(e) => onUpdateField({ content: e.target.value })}
+                      rows={6}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      placeholder="Enter your terms and conditions text..."
+                    />
+                  </div>
+
+                  {/* Links Management */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">Links</label>
+                      <button
+                        onClick={() => {
+                          const currentLinks = (selectedField as any).links || [];
+                          const newLink = {
+                            id: `link_${Date.now()}`,
+                            text: 'New Link',
+                            url: 'https://example.com'
+                          };
+                          onUpdateField({ links: [...currentLinks, newLink] });
+                        }}
+                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                      >
+                        + Add Link
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {((selectedField as any).links || []).map((link: any, index: number) => (
+                        <div key={link.id} className="flex gap-2 p-2 bg-gray-50 rounded">
+                          <input
+                            type="text"
+                            value={link.text}
+                            onChange={(e) => {
+                              const updatedLinks = [...((selectedField as any).links || [])];
+                              updatedLinks[index] = { ...link, text: e.target.value };
+                              onUpdateField({ links: updatedLinks });
+                            }}
+                            placeholder="Link text"
+                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                          />
+                          <input
+                            type="url"
+                            value={link.url}
+                            onChange={(e) => {
+                              const updatedLinks = [...((selectedField as any).links || [])];
+                              updatedLinks[index] = { ...link, url: e.target.value };
+                              onUpdateField({ links: updatedLinks });
+                            }}
+                            placeholder="https://example.com"
+                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                          />
+                          <button
+                            onClick={() => {
+                              const updatedLinks = ((selectedField as any).links || []).filter((_: any, i: number) => i !== index);
+                              onUpdateField({ links: updatedLinks });
+                            }}
+                            className="px-2 py-1 text-red-600 hover:text-red-800"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

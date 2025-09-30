@@ -31,6 +31,19 @@ export function SimpleFormBuilder() {
         ]
       } : {}),
       ...(type === 'longtext' ? { rows: 4 } : {}),
+      ...(type === 'richtext' ? { 
+        minHeight: '120px', 
+        maxHeight: '400px', 
+        toolbar: 'basic',
+        allowLinks: true,
+        allowFormatting: true 
+      } : {}),
+      ...(type === 'checkbox' ? {
+        useRichText: false,
+        richTextContent: '',
+        linkText: '',
+        linkUrl: ''
+      } : {}),
     } as FormFieldData;
 
     setFields(prev => [...prev, newField]);
@@ -289,6 +302,12 @@ export function SimpleFormBuilder() {
                 className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
               >
                 + Long Text
+              </button>
+              <button
+                onClick={() => addField('richtext')}
+                className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+              >
+                + Rich Text
               </button>
               <button
                 onClick={() => addField('email')}
