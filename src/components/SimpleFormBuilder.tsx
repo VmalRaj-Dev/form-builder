@@ -1,7 +1,7 @@
 'use client';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { FormFieldData, FormFieldType, FormSchema } from '@/types/form';
 import { FieldInspector } from './inspector/FieldInspector';
 import { FormPreview } from './preview/FormPreview';
@@ -9,6 +9,7 @@ import { FormPreview } from './preview/FormPreview';
 type ViewMode = 'builder' | 'preview';
 
 export function SimpleFormBuilder() {
+  const idCounterRef = useRef(0);
   const [fields, setFields] = useState<FormFieldData[]>([]);
   const [selectedField, setSelectedField] = useState<FormFieldData | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('builder');
@@ -17,13 +18,16 @@ export function SimpleFormBuilder() {
   const [formDescription, setFormDescription] = useState('');
 
   const addField = useCallback((type: FormFieldType) => {
+    const fieldId = ++idCounterRef.current;
     const newField: FormFieldData = {
-      id: `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `field_${fieldId}`,
+      name: `${type}_${fieldId}`, // Generate unique name
       type,
       label: `${type.charAt(0).toUpperCase() + type.slice(1)} Field`,
       placeholder: type === 'separator' ? '' : `Enter ${type}...`,
       required: false,
       validation: {},
+      width: 'w-full', // Default to full width
       ...(type === 'dropdown' || type === 'radio' ? {
         options: [
           { id: '1', label: 'Option 1', value: 'option1' },
@@ -77,24 +81,92 @@ export function SimpleFormBuilder() {
   }, []);
 
   const handlePreview = useCallback(() => {
-    const schema: FormSchema = {
-      id: `form_${Date.now()}`,
+    // Convert fields to SDK-friendly format
+    const fieldsWithCSS = fields.map(field => ({
+      id: field.id,
+      name: field.name,
+      type: field.type,
+      label: field.label,
+      placeholder: field.placeholder,
+      required: field.required,
+      validation: field.validation,
+      width: field.width,
+      style: {
+        label: {
+          color: '#111827',
+          'font-weight': '500',
+          'font-size': '14px',
+          'text-align': 'left' as const,
+          'margin-bottom': '4px'
+        },
+        input: {
+          'background-color': '#ffffff',
+          'border-color': '#d1d5db',
+          'border-radius': '6px',
+          'border-width': '1px',
+          padding: '12px 16px',
+          'font-size': '16px',
+          height: '48px',
+          color: '#111827'
+        }
+      },
+      // Include field-specific properties
+      ...(field.type === 'dropdown' || field.type === 'radio' ? { options: (field as any).options } : {}),
+      ...(field.type === 'longtext' ? { rows: (field as any).rows } : {}),
+    }));
+
+    const schema = {
+      id: `form_${++idCounterRef.current}`,
+      name: `form_${idCounterRef.current}`,
       title: formTitle,
       description: formDescription,
-      fields,
-      layout: { type: 'single' },
+      fields: fieldsWithCSS,
     };
-    setFormSchema(schema);
+    setFormSchema(schema as FormSchema);
     setViewMode('preview');
   }, [fields, formTitle, formDescription]);
 
   const handleExportSchema = useCallback(() => {
-    const schema: FormSchema = {
-      id: `form_${Date.now()}`,
+    // Convert fields to SDK-friendly format
+    const fieldsWithCSS = fields.map(field => ({
+      id: field.id,
+      name: field.name,
+      type: field.type,
+      label: field.label,
+      placeholder: field.placeholder,
+      required: field.required,
+      validation: field.validation,
+      width: field.width,
+      style: {
+        label: {
+          color: '#111827',
+          'font-weight': '500',
+          'font-size': '14px',
+          'text-align': 'left' as const,
+          'margin-bottom': '4px'
+        },
+        input: {
+          'background-color': '#ffffff',
+          'border-color': '#d1d5db',
+          'border-radius': '6px',
+          'border-width': '1px',
+          padding: '12px 16px',
+          'font-size': '16px',
+          height: '48px',
+          color: '#111827'
+        }
+      },
+      // Include field-specific properties
+      ...(field.type === 'dropdown' || field.type === 'radio' ? { options: (field as any).options } : {}),
+      ...(field.type === 'longtext' ? { rows: (field as any).rows } : {}),
+    }));
+
+    const schema = {
+      id: `form_${++idCounterRef.current}`,
+      name: `form_${idCounterRef.current}`,
       title: formTitle,
       description: formDescription,
-      fields,
-      layout: { type: 'single' },
+      fields: fieldsWithCSS,
     };
     console.log('Form Schema:', JSON.stringify(schema, null, 2));
     alert('Form schema exported to console!');

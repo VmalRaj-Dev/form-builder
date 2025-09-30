@@ -325,6 +325,13 @@ export function validateField(field: FormFieldData, value: string | boolean | Fi
       // Separators don't need validation
       return null;
 
+    case 'terms':
+      // Terms and conditions validation (similar to checkbox)
+      if (typeof value === 'boolean' || typeof value === 'string' || value === null) {
+        return validateCheckbox(value, field);
+      }
+      break;
+
     default:
       // Unknown field type
       console.warn(`Unknown field type: ${(field as any).type}`);
@@ -392,6 +399,9 @@ export function getValidationRulesForFieldType(fieldType: string): string[] {
     
     case 'separator':
       return []; // No validation for separators
+    
+    case 'terms':
+      return ['required']; // Only required makes sense for terms (like checkbox)
     
     default:
       return commonRules;

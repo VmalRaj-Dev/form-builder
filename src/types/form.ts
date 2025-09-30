@@ -6,72 +6,99 @@ export interface FieldOption {
 
 export interface FormFieldBase {
   id: string;
+  name: string; // HTML name attribute for form submission
   type: FormFieldType;
   label: string;
   placeholder?: string;
   description?: string;
   required?: boolean;
+  disabled?: boolean;
+  readonly?: boolean;
+  defaultValue?: string | number | boolean;
   validation?: ValidationRule;
   layout?: LayoutPosition;
+  width: 'w-full' | 'w-1/2'; // Field width: full width or half width (for two-column)
   style?: FieldStyle;
   options?: FieldOption[];
   rows?: number;
   conditionalLogic?: ConditionalLogic;
+  tooltip?: string; // Help text shown on hover
+  // Additional metadata
+  helpText?: string;
+  order?: number; // For field ordering
+  groupId?: string; // For field grouping
 }
 
 export interface FieldStyle {
-  // Label styling
-  labelColor?: string; // hex color or CSS color
+  label?: {
+    color?: string; // e.g., "#333333"
+    fontWeight?: number; // e.g., 400, 500, 600, 700
+    fontSize?: string; // e.g., "14px", "1rem"
+    textAlign?: 'left' | 'center' | 'right';
+    marginBottom?: string; // e.g., "4px", "0.25rem"
+    position?: 'outside' | 'inside' | 'hidden';
+  };
+  
+  input?: {
+    color?: string; // text color e.g., "#333333"
+    backgroundColor?: string; // e.g., "#ffffff"
+    borderColor?: string; // e.g., "#d1d5db"
+    borderWidth?: string; // e.g., "1px", "2px"
+    borderRadius?: string; // e.g., "4px", "8px"
+    padding?: string; // e.g., "8px 12px"
+    height?: string; // e.g., "40px", "2.5rem"
+    fontSize?: string; // e.g., "14px", "1rem"
+    focusBorderColor?: string; // focus border color e.g., "#3b82f6"
+    focusBoxShadow?: string; // e.g., "0 0 0 3px rgba(59, 130, 246, 0.1)"
+  };
+  
+  container?: {
+    marginBottom?: string; // e.g., "16px", "1rem"
+    width?: string; // e.g., "100%", "50%"
+  };
+  
+  // Checkbox specific (legacy support)
+  checkboxAlignment?: 'left' | 'right';
+  checkboxText?: string;
+  
+  // Icon (legacy support)
+  icon?: 'mail' | 'phone' | 'user' | 'lock';
+  
+  // Legacy properties for backward compatibility
+  labelColor?: string;
   labelWeight?: 'normal' | 'medium' | 'semibold' | 'bold';
   labelAlignment?: 'left' | 'center' | 'right';
   labelPosition?: 'outside' | 'inside' | 'hidden';
-  labelFontSize?: string; // e.g., "14px", "1rem"
-  labelMarginBottom?: string; // e.g., "4px", "0.25rem"
+  labelFontSize?: string;
+  labelMarginBottom?: string;
+  inputTextColor?: string;
+  inputBackgroundColor?: string;
+  inputBorderColor?: string;
+  inputBorderWidth?: string;
+  inputBorderRadius?: string;
+  inputPadding?: string;
+  inputHeight?: string;
+  inputFontSize?: string;
+  inputFocusColor?: string;
+  marginBottom?: string;
+  width?: string;
   
-  // Input styling
-  inputTextColor?: string; // hex color or CSS color
-  inputBackgroundColor?: string; // hex color or CSS color
-  inputBorderColor?: string; // hex color or CSS color
-  inputBorderWidth?: string; // e.g., "1px", "2px"
-  inputBorderRadius?: string; // e.g., "4px", "8px"
-  inputFocusColor?: string; // hex color or CSS color for focus ring
-  inputPadding?: string; // e.g., "8px 12px"
-  inputHeight?: string; // e.g., "40px", "2.5rem"
-  inputFontSize?: string; // e.g., "14px", "1rem"
+  // Checkbox styling properties
+  checkboxStyle?: 'default' | 'bordered';
+  checkboxBorderColor?: string;
+  checkboxBorderWidth?: string;
+  checkboxBorderRadius?: string;
+  checkboxBackgroundColor?: string;
+  checkboxPadding?: string;
   
-  // Field container styling
-  marginBottom?: string; // e.g., "16px", "1rem"
-  marginTop?: string; // e.g., "16px", "1rem"
-  marginLeft?: string; // e.g., "0px"
-  marginRight?: string; // e.g., "0px"
-  width?: string; // e.g., "100%", "300px"
-  
-  // Icon and decoration
-  icon?: string; // emoji or icon
-  
-  // Checkbox-specific styling
-  checkboxText?: string; // Display text next to checkbox (separate from field label)
-  checkboxAlignment?: 'left' | 'right'; // Position of checkbox relative to text
-  checkboxStyle?: 'default' | 'bordered'; // Style variant: default or bordered container
-  checkboxBorderColor?: string; // Border color for bordered style
-  checkboxBorderWidth?: string; // Border width for bordered style
-  checkboxBorderRadius?: string; // Border radius for bordered style
-  checkboxBackgroundColor?: string; // Background color for bordered style
-  checkboxPadding?: string; // Padding for bordered style
-  
-  // Dropdown/Select-specific styling
-  dropdownHoverColor?: string; // Background color when hovering over options
-  dropdownSelectedColor?: string; // Background color for selected option
-  dropdownOptionTextColor?: string; // Text color for dropdown options
-  dropdownOptionPadding?: string; // Padding for dropdown options
-  dropdownMaxHeight?: string; // Maximum height for dropdown list
-  dropdownBorderColor?: string; // Border color for dropdown list
-  dropdownShadow?: string; // Box shadow for dropdown list
-  
-  // Legacy Tailwind support (for backward compatibility)
-  fontSize?: string; // deprecated, use labelFontSize/inputFontSize
-  columnGap?: string; // for layout containers
-  rowGap?: string; // for layout containers
+  // Dropdown styling properties
+  dropdownHoverColor?: string;
+  dropdownSelectedColor?: string;
+  dropdownOptionTextColor?: string;
+  dropdownOptionPadding?: string;
+  dropdownMaxHeight?: string;
+  dropdownBorderColor?: string;
+  dropdownShadow?: string;
 }
 
 export type FormFieldType = 
@@ -303,12 +330,35 @@ export type FormFieldData =
 
 export interface FormSchema {
   id: string;
+  name: string; // HTML form name attribute
   title: string;
   description?: string;
   fields: FormFieldData[];
   layout: LayoutConfig;
   containers?: LayoutContainer[];
   design?: FormDesign;
+  // Form metadata
+  version?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy?: string;
+  // Form behavior
+  method?: 'GET' | 'POST';
+  action?: string; // Form submission URL
+  enctype?: 'application/x-www-form-urlencoded' | 'multipart/form-data' | 'text/plain';
+  target?: '_self' | '_blank' | '_parent' | '_top';
+  // Form settings
+  allowDrafts?: boolean;
+  autoSave?: boolean;
+  showProgress?: boolean;
+  confirmBeforeSubmit?: boolean;
+  redirectUrl?: string; // Redirect after successful submission
+  // Validation
+  validateOnSubmit?: boolean;
+  validateOnChange?: boolean;
+  // Accessibility
+  ariaLabel?: string;
+  ariaDescription?: string;
 }
 
 export interface LayoutConfig {

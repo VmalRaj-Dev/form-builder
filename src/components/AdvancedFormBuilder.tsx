@@ -34,12 +34,14 @@ export function AdvancedFormBuilder() {
   const addField = useCallback((type: FormFieldType) => {
     const newField: FormFieldData = {
       id: `field_${++idCounterRef.current}`,
+      name: `${type}_${idCounterRef.current}`, // Generate unique name
       type,
       label: `${type.charAt(0).toUpperCase() + type.slice(1)} Field`,
       placeholder: type === 'separator' ? '' : `Enter ${type}...`,
       required: false,
       validation: {},
       layout: 'standalone',
+      width: 'w-full', // Default to full width
       style: {
         labelColor: 'text-gray-700',
         labelWeight: 'medium',
@@ -152,28 +154,93 @@ export function AdvancedFormBuilder() {
   }, []);
 
   const handleExportSchema = useCallback(() => {
-    // Convert all Tailwind classes to CSS for export
+    // Convert fields to SDK-friendly format with CSS properties
     const fieldsWithCSS = fields.map(field => ({
-      ...field,
-      style: convertFieldStyleToCSS(field.style),
+      id: field.id,
+      name: field.name,
+      type: field.type,
+      label: field.label,
+      placeholder: field.placeholder,
+      required: field.required,
+      validation: field.validation,
+      width: field.width,
+      style: {
+        label: {
+          color: field.style?.labelColor || '#111827',
+          'font-weight': field.style?.labelWeight === 'medium' ? '500' : 
+                        field.style?.labelWeight === 'semibold' ? '600' : 
+                        field.style?.labelWeight === 'bold' ? '700' : '400',
+          'font-size': field.style?.labelFontSize || '14px',
+          'text-align': field.style?.labelAlignment || 'left',
+          'margin-bottom': '4px'
+        },
+        input: {
+          'background-color': field.style?.inputBackgroundColor || '#ffffff',
+          'border-color': field.style?.inputBorderColor || '#d1d5db',
+          'border-radius': field.style?.inputBorderRadius || '6px',
+          'border-width': field.style?.inputBorderWidth || '1px',
+          padding: field.style?.inputPadding || '12px 16px',
+          'font-size': field.style?.inputFontSize || '16px',
+          height: field.style?.inputHeight || '48px',
+          color: field.style?.inputTextColor || '#111827'
+        }
+      },
+      // Include field-specific properties
+      ...(field.type === 'dropdown' || field.type === 'radio' ? { options: (field as any).options } : {}),
+      ...(field.type === 'longtext' ? { rows: (field as any).rows } : {}),
+      ...(field.type === 'richtext' ? { 
+        minHeight: (field as any).minHeight,
+        maxHeight: (field as any).maxHeight,
+        toolbar: (field as any).toolbar
+      } : {}),
+      ...(field.type === 'checkbox' ? {
+        checkboxText: (field as any).checkboxText,
+        checkboxAlignment: (field as any).checkboxAlignment
+      } : {}),
+      ...(field.type === 'terms' ? {
+        mode: (field as any).mode,
+        content: (field as any).content,
+        links: (field as any).links
+      } : {}),
+      ...(field.type === 'file' ? {
+        accept: (field as any).accept,
+        multiple: (field as any).multiple
+      } : {}),
     }));
 
-    const designWithCSS = convertFormDesignToCSS(formDesign);
-
-    // Convert container styles to CSS
-    const containersWithCSS = containers.map(container => ({
-      ...container,
-      style: container.style ? convertFormDesignToCSS(container.style) : undefined,
-    }));
-
-    const schema: FormSchema = {
-      id: `form_${Date.now()}`,
+    const formId = ++idCounterRef.current;
+    const schema = {
+      id: `form_${formId}`,
+      name: `form_${formId}`,
       title: formTitle,
       description: formDescription,
       fields: fieldsWithCSS,
-      layout: { type: 'single' },
-      containers: containersWithCSS,
-      design: designWithCSS,
+      design: {
+        'background-color': formDesign.backgroundColor,
+        'font-family': formDesign.fontFamily,
+        'font-size': formDesign.fontSize,
+        padding: formDesign.padding,
+        'max-width': formDesign.maxWidth,
+        'border-radius': formDesign.borderRadius,
+        'box-shadow': formDesign.boxShadow,
+        'logo-url': formDesign.logoUrl,
+        'submit-button': {
+          text: formDesign.submitButton?.text || 'Submit',
+          'background-color': formDesign.submitButton?.backgroundColor || '#2563eb',
+          'text-color': formDesign.submitButton?.textColor || '#ffffff',
+          padding: formDesign.submitButton?.padding || '14px 32px',
+          'border-radius': formDesign.submitButton?.borderRadius || '6px',
+          'font-size': formDesign.submitButton?.fontSize || '16px',
+          'font-weight': formDesign.submitButton?.fontWeight || 'semibold',
+          width: formDesign.submitButton?.width || 'auto',
+          alignment: formDesign.submitButton?.alignment || 'center'
+        },
+        spacing: formDesign.spacing,
+        // Generate font family link if custom font is used
+        'font-link': formDesign.fontFamily && !formDesign.fontFamily.startsWith('font-') 
+          ? `https://fonts.googleapis.com/css2?family=${formDesign.fontFamily.replace(/\s+/g, '+')}&display=swap`
+          : null
+      }
     };
     
     // Create a downloadable JSON file
@@ -188,7 +255,7 @@ export function AdvancedFormBuilder() {
     
     console.log('Enhanced Form Schema with CSS:', schema);
     alert('Enhanced form schema exported with exact CSS properties!');
-  }, [fields, containers, formTitle, formDescription, formDesign]);
+  }, [fields, formTitle, formDescription, formDesign]);
 
   const renderField = (field: FormFieldData) => {
     const isSelected = selectedField?.id === field.id;

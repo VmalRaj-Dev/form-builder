@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { RichTextCheckbox } from '@/components/ui/RichTextCheckbox';
 import { TermsAndConditions } from '@/components/ui/TermsAndConditions';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 interface FormPreviewProps {
   schema: FormSchema;
@@ -100,6 +101,14 @@ export function FormPreview({ schema }: FormPreviewProps) {
     const value = formData[field.id] || '';
     const error = errors[field.id];
     const fieldStyle = field.style || {};
+    
+    // Apply width styling based on field.width property
+    const containerStyle: React.CSSProperties = field.width === 'w-1/2' ? {
+      width: '50%',
+      display: 'inline-block',
+      verticalAlign: 'top',
+      paddingRight: '8px'
+    } : { width: '100%' };
 
     // Apply dynamic Tailwind classes based on field style
     const labelClasses = [
@@ -125,10 +134,11 @@ export function FormPreview({ schema }: FormPreviewProps) {
       case 'email':
       case 'phone':
         return (
-          <div key={field.id} className="space-y-2">
-            <label className={labelClasses}>
+          <div key={field.id} className="space-y-2" style={containerStyle}>
+            <label className={labelClasses} title={field.tooltip}>
               {field.label}
               {field.required && <span className="text-red-500 ml-1">*</span>}
+              {field.tooltip && <span className="ml-1 text-gray-400 cursor-help" title={field.tooltip}>ⓘ</span>}
             </label>
             {field.description && (
               <p className="text-sm text-gray-500">{field.description}</p>
@@ -159,9 +169,10 @@ export function FormPreview({ schema }: FormPreviewProps) {
       case 'longtext':
         return (
           <div key={field.id} className="space-y-2">
-            <label className={labelClasses}>
+            <label className={labelClasses} title={field.tooltip}>
               {field.label}
               {field.required && <span className="text-red-500 ml-1">*</span>}
+              {field.tooltip && <span className="ml-1 text-gray-400 cursor-help" title={field.tooltip}>ⓘ</span>}
             </label>
             {field.description && (
               <p className="text-sm text-gray-500">{field.description}</p>
@@ -170,7 +181,7 @@ export function FormPreview({ schema }: FormPreviewProps) {
               value={value}
               onChange={(e) => handleInputChange(field.id, e.target.value)}
               placeholder={field.placeholder}
-              rows={(field as any).rows || 4}
+              rows={field.rows || 4}
               className={`${inputClasses} resize-vertical`}
             />
             {error && <p className="text-sm text-red-600">{error}</p>}
@@ -178,11 +189,13 @@ export function FormPreview({ schema }: FormPreviewProps) {
         );
 
       case 'richtext':
+        const richTextField = field as any; // RichTextFieldData type casting
         return (
           <div key={field.id} className="space-y-2">
-            <label className={labelClasses}>
+            <label className={labelClasses} title={field.tooltip}>
               {field.label}
               {field.required && <span className="text-red-500 ml-1">*</span>}
+              {field.tooltip && <span className="ml-1 text-gray-400 cursor-help" title={field.tooltip}>ⓘ</span>}
             </label>
             {field.description && (
               <p className="text-sm text-gray-500">{field.description}</p>
@@ -191,11 +204,11 @@ export function FormPreview({ schema }: FormPreviewProps) {
               value={value || ''}
               onChange={(newValue) => handleInputChange(field.id, newValue)}
               placeholder={field.placeholder || 'Start typing...'}
-              minHeight={(field as any).minHeight || '120px'}
-              maxHeight={(field as any).maxHeight || '400px'}
-              toolbar={(field as any).toolbar || 'basic'}
-              allowLinks={(field as any).allowLinks !== false}
-              allowFormatting={(field as any).allowFormatting !== false}
+              minHeight={richTextField.minHeight || '120px'}
+              maxHeight={richTextField.maxHeight || '400px'}
+              toolbar={richTextField.toolbar || 'basic'}
+              allowLinks={richTextField.allowLinks !== false}
+              allowFormatting={richTextField.allowFormatting !== false}
               error={!!error}
             />
             {error && <p className="text-sm text-red-600">{error}</p>}
@@ -205,9 +218,10 @@ export function FormPreview({ schema }: FormPreviewProps) {
       case 'number':
         return (
           <div key={field.id} className="space-y-2">
-            <label className={labelClasses}>
+            <label className={labelClasses} title={field.tooltip}>
               {field.label}
               {field.required && <span className="text-red-500 ml-1">*</span>}
+              {field.tooltip && <span className="ml-1 text-gray-400 cursor-help" title={field.tooltip}>ⓘ</span>}
             </label>
             {field.description && (
               <p className="text-sm text-gray-500">{field.description}</p>
@@ -230,12 +244,71 @@ export function FormPreview({ schema }: FormPreviewProps) {
           </div>
         );
 
-      case 'dropdown':
+      case 'date':
         return (
           <div key={field.id} className="space-y-2">
-            <label className={labelClasses}>
+            <label className={labelClasses} title={field.tooltip}>
               {field.label}
               {field.required && <span className="text-red-500 ml-1">*</span>}
+              {field.tooltip && <span className="ml-1 text-gray-400 cursor-help" title={field.tooltip}>ⓘ</span>}
+            </label>
+            {field.description && (
+              <p className="text-sm text-gray-500">{field.description}</p>
+            )}
+            <DatePicker
+              value={typeof value === 'string' ? value : ''}
+              onChange={(dateValue) => handleInputChange(field.id, dateValue)}
+              validation={field.validation}
+              placeholder={field.placeholder}
+              className={inputClasses}
+              style={{}}
+            />
+            {error && <p className="text-sm text-red-600">{error}</p>}
+          </div>
+        );
+
+      case 'postal':
+        return (
+          <div key={field.id} className="space-y-2" style={containerStyle}>
+            <label className={labelClasses} title={field.tooltip}>
+              {field.label}
+              {field.required && <span className="text-red-500 ml-1">*</span>}
+              {field.tooltip && <span className="ml-1 text-gray-400 cursor-help" title={field.tooltip}>ⓘ</span>}
+            </label>
+            {field.description && (
+              <p className="text-sm text-gray-500">{field.description}</p>
+            )}
+            <div className="relative">
+              {fieldStyle.icon && (
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="text-gray-400 text-sm">
+                    {fieldStyle.icon === 'mail' ? '📧' : 
+                     fieldStyle.icon === 'phone' ? '📱' : 
+                     fieldStyle.icon === 'user' ? '👤' : 
+                     fieldStyle.icon === 'lock' ? '🔒' : '📮'}
+                  </span>
+                </div>
+              )}
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => handleInputChange(field.id, e.target.value)}
+                placeholder={field.placeholder}
+                className={`${inputClasses} ${fieldStyle.icon ? 'pl-10' : ''}`}
+              />
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+          </div>
+        );
+
+      case 'dropdown':
+        const dropdownField = field as any; // DropdownFieldData type casting
+        return (
+          <div key={field.id} className="space-y-2">
+            <label className={labelClasses} title={field.tooltip}>
+              {field.label}
+              {field.required && <span className="text-red-500 ml-1">*</span>}
+              {field.tooltip && <span className="ml-1 text-gray-400 cursor-help" title={field.tooltip}>ⓘ</span>}
             </label>
             {field.description && (
               <p className="text-sm text-gray-500">{field.description}</p>
@@ -246,7 +319,7 @@ export function FormPreview({ schema }: FormPreviewProps) {
               className={inputClasses}
             >
               <option value="">{field.placeholder || 'Select an option...'}</option>
-              {(field as any).options?.map((option: any) => (
+              {dropdownField.options?.map((option: any) => (
                 <option key={option.id} value={option.value}>
                   {option.label}
                 </option>
@@ -257,17 +330,19 @@ export function FormPreview({ schema }: FormPreviewProps) {
         );
 
       case 'radio':
+        const radioField = field as any; // RadioFieldData type casting
         return (
           <div key={field.id} className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700" title={field.tooltip}>
               {field.label}
               {field.required && <span className="text-red-500 ml-1">*</span>}
+              {field.tooltip && <span className="ml-1 text-gray-400 cursor-help" title={field.tooltip}>ⓘ</span>}
             </label>
             {field.description && (
               <p className="text-sm text-gray-500">{field.description}</p>
             )}
             <div className="space-y-2">
-              {(field as any).options?.map((option: any) => (
+              {radioField.options?.map((option: any) => (
                 <div key={option.id} className="flex items-center space-x-2">
                   <input
                     type="radio"
@@ -286,6 +361,7 @@ export function FormPreview({ schema }: FormPreviewProps) {
         );
 
       case 'checkbox':
+        const checkboxField = field as any; // CheckboxFieldData type casting
         return (
           <RichTextCheckbox
             key={field.id}
@@ -294,21 +370,24 @@ export function FormPreview({ schema }: FormPreviewProps) {
             onChange={(checked) => handleInputChange(field.id, checked)}
             label={field.label}
             description={field.description}
-            richTextContent={(field as any).richTextContent}
-            linkText={(field as any).linkText}
-            linkUrl={(field as any).linkUrl}
-            useRichText={(field as any).useRichText || false}
+            richTextContent={checkboxField.richTextContent}
+            linkText={checkboxField.linkText}
+            linkUrl={checkboxField.linkUrl}
+            useRichText={checkboxField.useRichText || false}
             required={field.required}
             error={error}
+            tooltip={field.tooltip}
           />
         );
 
       case 'file':
+        const fileField = field as any; // FileFieldData type casting
         return (
           <div key={field.id} className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700" title={field.tooltip}>
               {field.label}
               {field.required && <span className="text-red-500 ml-1">*</span>}
+              {field.tooltip && <span className="ml-1 text-gray-400 cursor-help" title={field.tooltip}>ⓘ</span>}
             </label>
             {field.description && (
               <p className="text-sm text-gray-500">{field.description}</p>
@@ -321,8 +400,8 @@ export function FormPreview({ schema }: FormPreviewProps) {
                 onChange={(e) => handleInputChange(field.id, e.target.files?.[0])}
                 className="hidden"
                 id={`file-${field.id}`}
-                accept={(field as any).accept}
-                multiple={(field as any).multiple}
+                accept={fileField.accept}
+                multiple={fileField.multiple}
               />
               <label htmlFor={`file-${field.id}`} className="cursor-pointer">
                 <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
@@ -354,13 +433,14 @@ export function FormPreview({ schema }: FormPreviewProps) {
         );
 
       case 'terms':
+        const termsField = field as any; // TermsFieldData type casting
         return (
           <TermsAndConditions
             key={field.id}
             id={field.id}
-            mode={(field as any).mode || 'checkbox'}
-            content={(field as any).content || ''}
-            links={(field as any).links || []}
+            mode={termsField.mode || 'checkbox'}
+            content={termsField.content || ''}
+            links={termsField.links || []}
             checked={value || false}
             onChange={(checked) => handleInputChange(field.id, checked)}
             required={field.required}

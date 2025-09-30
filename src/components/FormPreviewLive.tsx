@@ -15,6 +15,7 @@ import {
 } from '@/utils/fieldStyleUtils';
 import { validateField } from '@/utils/fieldValidation';
 import { DatePicker } from '@/components/ui/DatePicker';
+import { TermsAndConditions } from '@/components/ui/TermsAndConditions';
 
 
 interface FormPreviewLiveProps {
@@ -563,6 +564,21 @@ export function FormPreviewLive({
                 }
               />
             </div>
+          );
+
+        case 'terms':
+          const termsField = field as any; // TermsFieldData type casting
+          return (
+            <TermsAndConditions
+              id={field.id}
+              mode={termsField.mode || 'checkbox'}
+              content={termsField.content || ''}
+              links={termsField.links || []}
+              checked={typeof value === 'boolean' ? value : false}
+              onChange={(checked) => handleInputChange(field.id, checked)}
+              required={field.required}
+              error={error || undefined}
+            />
           );
 
         default:

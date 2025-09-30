@@ -15,6 +15,7 @@ interface RichTextCheckboxProps {
   required?: boolean;
   error?: string;
   className?: string;
+  tooltip?: string;
 }
 
 export function RichTextCheckbox({
@@ -28,6 +29,7 @@ export function RichTextCheckbox({
   linkUrl,
   useRichText = false,
   required = false,
+  tooltip,
   error,
   className = ''
 }: RichTextCheckboxProps) {
@@ -68,16 +70,18 @@ export function RichTextCheckbox({
         <input
           type="checkbox"
           id={id}
+          name={id}
           checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          onChange={(e) => onChange?.(e.target.checked)}
+          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded flex-shrink-0"
         />
         <div className="flex-1">
-          <label htmlFor={id} className="cursor-pointer">
+          <label htmlFor={id} className="cursor-pointer" title={tooltip}>
             {!useRichText && (
               <span className="block text-sm font-medium text-gray-700">
                 {label}
                 {required && <span className="text-red-500 ml-1">*</span>}
+                {tooltip && <span className="ml-1 text-gray-400 cursor-help" title={tooltip}>ⓘ</span>}
               </span>
             )}
             <div className="mt-1">

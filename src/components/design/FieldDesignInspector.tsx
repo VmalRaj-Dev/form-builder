@@ -118,6 +118,23 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Field Name
+                <span className="text-xs text-gray-500 ml-1">(HTML name attribute)</span>
+              </label>
+              <input
+                type="text"
+                value={selectedField.name}
+                onChange={(e) => onUpdateField({ name: e.target.value })}
+                placeholder="field_name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Used for form submission. Should be unique and contain only letters, numbers, and underscores.
+              </p>
+            </div>
+
             {selectedField.type !== 'separator' && selectedField.type !== 'checkbox' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Placeholder</label>
@@ -152,6 +169,128 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                 <label htmlFor="required" className="ml-2 block text-sm text-gray-900">
                   Required field
                 </label>
+              </div>
+            )}
+
+            {/* Additional Field Properties */}
+            {selectedField.type !== 'separator' && (
+              <div className="space-y-3 pt-4 border-t border-gray-200">
+                <h4 className="text-sm font-medium text-gray-700">Field Properties</h4>
+                
+                {/* Disabled Toggle */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="disabled"
+                    checked={selectedField.disabled || false}
+                    onChange={(e) => onUpdateField({ disabled: e.target.checked })}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="disabled" className="ml-2 block text-sm text-gray-900">
+                    Disabled (field cannot be edited)
+                  </label>
+                </div>
+
+                {/* Readonly Toggle */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="readonly"
+                    checked={selectedField.readonly || false}
+                    onChange={(e) => onUpdateField({ readonly: e.target.checked })}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="readonly" className="ml-2 block text-sm text-gray-900">
+                    Read-only (field can be focused but not edited)
+                  </label>
+                </div>
+
+                {/* Default Value */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Default Value
+                    <span className="text-xs text-gray-500 ml-1">(pre-filled value)</span>
+                  </label>
+                  {selectedField.type === 'checkbox' ? (
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="defaultValueCheckbox"
+                        checked={selectedField.defaultValue === true}
+                        onChange={(e) => onUpdateField({ defaultValue: e.target.checked })}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="defaultValueCheckbox" className="ml-2 block text-sm text-gray-900">
+                        Checked by default
+                      </label>
+                    </div>
+                  ) : selectedField.type === 'number' ? (
+                    <input
+                      type="number"
+                      value={selectedField.defaultValue as number || ''}
+                      onChange={(e) => onUpdateField({ defaultValue: e.target.value ? parseFloat(e.target.value) : undefined })}
+                      placeholder="Enter default number..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  ) : selectedField.type === 'dropdown' || selectedField.type === 'radio' ? (
+                    <select
+                      value={selectedField.defaultValue as string || ''}
+                      onChange={(e) => onUpdateField({ defaultValue: e.target.value || undefined })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">No default selection</option>
+                      {('options' in selectedField ? selectedField.options || [] : []).map(option => (
+                        <option key={option.id} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={selectedField.defaultValue as string || ''}
+                      onChange={(e) => onUpdateField({ defaultValue: e.target.value || undefined })}
+                      placeholder="Enter default text..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    Value that appears in the field when the form loads
+                  </p>
+                </div>
+
+                {/* Tooltip */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tooltip
+                    <span className="text-xs text-gray-500 ml-1">(help text on hover)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedField.tooltip || ''}
+                    onChange={(e) => onUpdateField({ tooltip: e.target.value || undefined })}
+                    placeholder="Enter helpful tooltip text..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Shows when users hover over the field label
+                  </p>
+                </div>
+
+                {/* Width Info (Read-only) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Field Width
+                  </label>
+                  <div className="px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded">
+                    <span className="font-medium">
+                      {selectedField.width === 'w-1/2' ? 'Half Width (w-1/2)' : 'Full Width (w-full)'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Width is automatically determined by container placement. Move field to two-column container for half width.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -389,10 +528,13 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                     <textarea
                       value={(selectedField as any).content || ''}
                       onChange={(e) => onUpdateField({ content: e.target.value })}
-                      rows={6}
+                      rows={8}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      placeholder="Enter your terms and conditions text..."
+                      placeholder="I agree to the Terms & Conditions and Privacy Policy. By checking this box, I acknowledge that I have read and understood the terms."
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Use link text from below to create clickable links (e.g., "Terms & Conditions" will become a clickable link)
+                    </p>
                   </div>
 
                   {/* Links Management */}
@@ -404,53 +546,68 @@ export function FieldDesignInspector({ selectedField, onUpdateField, allFields =
                           const currentLinks = (selectedField as any).links || [];
                           const newLink = {
                             id: `link_${Date.now()}`,
-                            text: 'New Link',
-                            url: 'https://example.com'
+                            text: 'Privacy Policy',
+                            url: 'https://example.com/privacy'
                           };
                           onUpdateField({ links: [...currentLinks, newLink] });
                         }}
-                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                        className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
                       >
                         + Add Link
                       </button>
                     </div>
                     
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {((selectedField as any).links || []).map((link: any, index: number) => (
-                        <div key={link.id} className="flex gap-2 p-2 bg-gray-50 rounded">
-                          <input
-                            type="text"
-                            value={link.text}
-                            onChange={(e) => {
-                              const updatedLinks = [...((selectedField as any).links || [])];
-                              updatedLinks[index] = { ...link, text: e.target.value };
-                              onUpdateField({ links: updatedLinks });
-                            }}
-                            placeholder="Link text"
-                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
-                          />
-                          <input
-                            type="url"
-                            value={link.url}
-                            onChange={(e) => {
-                              const updatedLinks = [...((selectedField as any).links || [])];
-                              updatedLinks[index] = { ...link, url: e.target.value };
-                              onUpdateField({ links: updatedLinks });
-                            }}
-                            placeholder="https://example.com"
-                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
-                          />
-                          <button
-                            onClick={() => {
-                              const updatedLinks = ((selectedField as any).links || []).filter((_: any, i: number) => i !== index);
-                              onUpdateField({ links: updatedLinks });
-                            }}
-                            className="px-2 py-1 text-red-600 hover:text-red-800"
-                          >
-                            ×
-                          </button>
+                        <div key={link.id} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                          <div className="flex gap-2 mb-2">
+                            <div className="flex-1">
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Link Text</label>
+                              <input
+                                type="text"
+                                value={link.text}
+                                onChange={(e) => {
+                                  const updatedLinks = [...((selectedField as any).links || [])];
+                                  updatedLinks[index] = { ...link, text: e.target.value };
+                                  onUpdateField({ links: updatedLinks });
+                                }}
+                                placeholder="Terms & Conditions"
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            <button
+                              onClick={() => {
+                                const updatedLinks = ((selectedField as any).links || []).filter((_: any, i: number) => i !== index);
+                                onUpdateField({ links: updatedLinks });
+                              }}
+                              className="mt-5 px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                              title="Remove link"
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">URL</label>
+                            <input
+                              type="url"
+                              value={link.url}
+                              onChange={(e) => {
+                                const updatedLinks = [...((selectedField as any).links || [])];
+                                updatedLinks[index] = { ...link, url: e.target.value };
+                                onUpdateField({ links: updatedLinks });
+                              }}
+                              placeholder="https://example.com/terms"
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
                         </div>
                       ))}
+                      
+                      {((selectedField as any).links || []).length === 0 && (
+                        <div className="text-center py-4 text-gray-500 text-sm">
+                          No links added yet. Click "Add Link" to create clickable links in your terms text.
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

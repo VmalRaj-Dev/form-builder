@@ -1,16 +1,13 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { FormFieldData, FormFieldType, FormSchema, FormDesign, FieldOption, LayoutContainer } from '@/types/form';
+import { FormFieldData, FormFieldType, FormDesign, FieldOption, LayoutContainer } from '@/types/form';
 import { FormPreviewLive } from './FormPreviewLive';
 import { ThemeInspector } from './design/ThemeInspector';
 import { FieldDesignInspector } from './design/FieldDesignInspector';
-import { convertFieldStyleToCSS, convertFormDesignToCSS } from '@/utils/tailwindToCss';
 
 type ViewMode = 'builder' | 'preview';
 type InspectorMode = 'field' | 'theme';
-
-
 export function EditableFormBuilder() {
   const idCounterRef = useRef(0);
   const [fields, setFields] = useState<FormFieldData[]>([]);
@@ -50,13 +47,16 @@ export function EditableFormBuilder() {
   });
 
   const addField = useCallback((type: FormFieldType, containerId?: string, column?: 'left' | 'right') => {
+    const fieldId = ++idCounterRef.current;
     const newField: FormFieldData = {
-      id: `field_${++idCounterRef.current}`,
+      id: `field_${fieldId}`,
+      name: `${type}_${fieldId}`, // Generate unique name
       type,
       label: `${type.charAt(0).toUpperCase() + type.slice(1)} Field`,
       placeholder: type === 'separator' ? '' : `Enter ${type}...`,
       required: false,
       validation: {},
+      width: containerId && containers.find(c => c.id === containerId)?.type === 'two-column' ? 'w-1/2' : 'w-full', // Set width based on container
       style: {
         labelColor: '#111827',
         labelWeight: 'medium',
@@ -116,10 +116,10 @@ export function EditableFormBuilder() {
       } : {}),
       ...(type === 'terms' ? {
         mode: 'checkbox',
-        content: 'By entering the Contest I agree to the Terms & Conditions and authorize Home Hardware Stores Limited to collect the personal information disclosed in this form, and any additional information as described in the Terms & Conditions, for the purpose of administering the Contest and maintaining an accurate customer database. I understand that this information will be managed in accordance with the Home Hardware Stores Limited Privacy Policy. For Quebec Residents: Your personal information may be transferred outside of Quebec.',
+        content: 'I agree to the Terms & Conditions and Privacy Policy. By checking this box, I acknowledge that I have read and understood the terms.',
         links: [
-          { id: 'terms', text: 'Terms & Conditions', url: 'https://example.com/terms' },
-          { id: 'privacy', text: 'Privacy Policy', url: 'https://example.com/privacy' }
+          { id: 'terms_link', text: 'Terms & Conditions', url: 'https://example.com/terms' },
+          { id: 'privacy_link', text: 'Privacy Policy', url: 'https://example.com/privacy' }
         ]
       } : {}),
     } as FormFieldData;
@@ -151,7 +151,7 @@ export function EditableFormBuilder() {
 
     setSelectedField(newField);
     setInspectorMode('field');
-  }, []);
+  }, [containers]);
 
   const addContainer = useCallback((type: 'single-column' | 'two-column') => {
     const newContainer: LayoutContainer = {
@@ -228,7 +228,11 @@ export function EditableFormBuilder() {
   const deleteContainer = useCallback((containerId: string) => {
     const container = containers.find(c => c.id === containerId);
     if (container) {
-      // Fields remain in the fields array, just not in any container
+      // Update width of fields that were in this container back to full width
+      const allFieldIds = [...(container.leftFields || []), ...(container.rightFields || [])];
+      setFields(prev => prev.map(field => 
+        allFieldIds.includes(field.id) ? { ...field, width: 'w-full' } : field
+      ));
       console.log('Removing container:', containerId);
     }
     
@@ -238,6 +242,17 @@ export function EditableFormBuilder() {
 
   const moveFieldToContainer = useCallback((fieldId: string, containerId: string, column?: 'left' | 'right') => {
     console.log('Moving field', fieldId, 'to container', containerId, 'column', column);
+    
+    // Find the target container to determine width
+    const targetContainer = containers.find(c => c.id === containerId);
+    const newWidth = targetContainer?.type === 'two-column' ? 'w-1/2' : 'w-full';
+    
+    console.log('Container type:', targetContainer?.type, 'New width:', newWidth);
+    
+    // Update field width based on container type
+    setFields(prev => prev.map(field => 
+      field.id === fieldId ? { ...field, width: newWidth } : field
+    ));
     
     // Remove field from all containers first
     setContainers(prev => prev.map(container => ({
@@ -264,6 +279,36 @@ export function EditableFormBuilder() {
       }
       return container;
     }));
+  }, [containers]);
+
+  const moveFieldToStandalone = useCallback((fieldId: string) => {
+    console.log('Moving field to standalone:', fieldId);
+    
+    // Update field width to full when moved to standalone
+    setFields(prev => prev.map(field => 
+      field.id === fieldId ? { ...field, width: 'w-full' } : field
+    ));
+    
+    // Remove field from all containers
+    setContainers(prev => prev.map(container => ({
+      ...container,
+      leftFields: (container.leftFields || []).filter(id => id !== fieldId),
+      rightFields: (container.rightFields || []).filter(id => id !== fieldId),
+    })));
+  }, []);
+
+  const moveContainer = useCallback((containerId: string, direction: 'up' | 'down') => {
+    setContainers(prev => {
+      const index = prev.findIndex(container => container.id === containerId);
+      if (index === -1) return prev;
+      
+      const newIndex = direction === 'up' ? index - 1 : index + 1;
+      if (newIndex < 0 || newIndex >= prev.length) return prev;
+      
+      const newContainers = [...prev];
+      [newContainers[index], newContainers[newIndex]] = [newContainers[newIndex], newContainers[index]];
+      return newContainers;
+    });
   }, []);
 
   const getFieldsInContainer = useCallback((containerId: string, column?: 'left' | 'right') => {
@@ -280,28 +325,101 @@ export function EditableFormBuilder() {
   }, [containers, fields]);
 
   const handleExportSchema = useCallback(() => {
-    // Convert all Tailwind classes to CSS for export
+    // Convert fields to SDK-friendly format with CSS properties
     const fieldsWithCSS = fields.map(field => ({
-      ...field,
-      style: convertFieldStyleToCSS(field.style),
+      id: field.id,
+      name: field.name,
+      type: field.type,
+      label: field.label,
+      placeholder: field.placeholder,
+      required: field.required,
+      validation: field.validation,
+      width: field.width,
+      style: {
+        label: {
+          color: field.style?.labelColor || '#111827',
+          'font-weight': field.style?.labelWeight === 'medium' ? '500' : 
+                        field.style?.labelWeight === 'semibold' ? '600' : 
+                        field.style?.labelWeight === 'bold' ? '700' : '400',
+          'font-size': field.style?.labelFontSize || '14px',
+          'text-align': field.style?.labelAlignment || 'left',
+          'margin-bottom': '4px'
+        },
+        input: {
+          'background-color': field.style?.inputBackgroundColor || '#ffffff',
+          'border-color': field.style?.inputBorderColor || '#d1d5db',
+          'border-radius': field.style?.inputBorderRadius || '6px',
+          'border-width': field.style?.inputBorderWidth || '1px',
+          padding: field.style?.inputPadding || '12px 16px',
+          'font-size': field.style?.inputFontSize || '16px',
+          height: field.style?.inputHeight || '48px',
+          color: field.style?.inputTextColor || '#111827'
+        }
+      },
+      // Include field-specific properties
+      ...(field.type === 'dropdown' || field.type === 'radio' ? { options: (field as any).options } : {}),
+      ...(field.type === 'longtext' ? { rows: (field as any).rows } : {}),
+      ...(field.type === 'richtext' ? { 
+        minHeight: (field as any).minHeight,
+        maxHeight: (field as any).maxHeight,
+        toolbar: (field as any).toolbar
+      } : {}),
+      ...(field.type === 'checkbox' ? {
+        checkboxText: (field as any).checkboxText,
+        checkboxAlignment: (field as any).checkboxAlignment
+      } : {}),
+      ...(field.type === 'terms' ? {
+        mode: (field as any).mode,
+        content: (field as any).content,
+        links: (field as any).links
+      } : {}),
+      ...(field.type === 'file' ? {
+        accept: (field as any).accept,
+        multiple: (field as any).multiple
+      } : {}),
+      ...(field.type === 'date' ? {
+        dateFormat: (field as any).dateFormat,
+        customDateFormat: (field as any).customDateFormat
+      } : {}),
+      ...(field.type === 'postal' ? {
+        postalFormat: (field as any).postalFormat,
+        customPattern: (field as any).customPattern
+      } : {}),
     }));
 
-    const designWithCSS = convertFormDesignToCSS(formDesign);
-
-    const schema: FormSchema = {
-      id: `form_${Date.now()}`,
+    const formId = ++idCounterRef.current;
+    const schema = {
+      id: `form_${formId}`,
+      name: `form_${formId}`,
       title: formTitle,
       description: formDescription,
       fields: fieldsWithCSS,
-      layout: { type: 'single' },
-      containers: containers.map(c => ({
-        id: c.id,
-        type: c.type,
-        fields: c.leftFields || [],
-        leftFields: c.leftFields || [],
-        rightFields: c.rightFields || [],
-      })),
-      design: designWithCSS,
+      design: {
+        'background-color': formDesign.backgroundColor,
+        'font-family': formDesign.fontFamily,
+        'font-size': formDesign.fontSize,
+        padding: formDesign.padding,
+        'max-width': formDesign.maxWidth,
+        'border-radius': formDesign.borderRadius,
+        'box-shadow': formDesign.boxShadow,
+        'logo-url': formDesign.logoUrl,
+        'submit-button': {
+          text: formDesign.submitButton?.text || 'Submit',
+          'background-color': formDesign.submitButton?.backgroundColor || '#2563eb',
+          'text-color': formDesign.submitButton?.textColor || '#ffffff',
+          padding: formDesign.submitButton?.padding || '14px 32px',
+          'border-radius': formDesign.submitButton?.borderRadius || '6px',
+          'font-size': formDesign.submitButton?.fontSize || '16px',
+          'font-weight': formDesign.submitButton?.fontWeight || 'semibold',
+          width: formDesign.submitButton?.width || 'auto',
+          alignment: formDesign.submitButton?.alignment || 'center'
+        },
+        spacing: formDesign.spacing,
+        // Generate font family link if custom font is used
+        'font-link': formDesign.fontFamily && !formDesign.fontFamily.startsWith('font-') 
+          ? `https://fonts.googleapis.com/css2?family=${formDesign.fontFamily.replace(/\s+/g, '+')}&display=swap`
+          : null
+      }
     };
     
     // Create a downloadable JSON file
@@ -316,14 +434,14 @@ export function EditableFormBuilder() {
     
     console.log('Form Schema with CSS:', schema);
     alert('Form schema exported with exact CSS properties!');
-  }, [fields, containers, formTitle, formDescription, formDesign]);
+  }, [fields, formTitle, formDescription, formDesign]);
 
   const renderField = (field: FormFieldData, isInContainer = false) => {
     const isSelected = selectedField?.id === field.id;
 
     return (
       <div
-        className={`border rounded-lg p-3 mb-2 cursor-pointer transition-all ${
+        className={`border rounded-lg p-3 mb-2 cursor-pointer transition-all duration-200 ${
           isSelected ? 'border-blue-500 bg-blue-50 shadow-md' : 'border-gray-300 hover:border-blue-400 hover:shadow-sm'
         } ${isInContainer ? 'bg-white' : ''}`}
         onClick={() => {
@@ -379,21 +497,75 @@ export function EditableFormBuilder() {
     );
   };
 
-  const renderContainer = (container: LayoutContainer) => {
+  const renderContainer = (container: LayoutContainer, index: number) => {
     const isSelected = selectedContainer === container.id;
 
     return (
       <div
         key={container.id}
-        className={`border-2 border-dashed rounded-lg p-4 mb-4 transition-all ${
-          isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', `container:${container.id}`);
+          console.log('Dragging container:', container.id);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const data = e.dataTransfer.getData('text/plain');
+          if (data.startsWith('container:')) {
+            const draggedContainerId = data.replace('container:', '');
+            if (draggedContainerId !== container.id) {
+              // Reorder containers
+              const draggedIndex = containers.findIndex(c => c.id === draggedContainerId);
+              const targetIndex = index;
+              if (draggedIndex !== -1 && draggedIndex !== targetIndex) {
+                setContainers(prev => {
+                  const newContainers = [...prev];
+                  const [draggedContainer] = newContainers.splice(draggedIndex, 1);
+                  newContainers.splice(targetIndex, 0, draggedContainer);
+                  return newContainers;
+                });
+              }
+            }
+          }
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        className={`border-2 border-dashed rounded-lg p-4 mb-4 transition-all duration-200 cursor-move ${
+          isSelected ? 'border-blue-500 bg-blue-50 shadow-md' : 'border-gray-300 hover:border-blue-400 hover:shadow-sm'
         }`}
         onClick={() => setSelectedContainer(container.id)}
       >
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded font-medium">
-            {container.type === 'single-column' ? 'SINGLE COLUMN' : 'TWO COLUMN'}
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded font-medium">
+              {container.type === 'single-column' ? 'SINGLE COLUMN' : 'TWO COLUMN'}
+            </span>
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveContainer(container.id, 'up');
+                }}
+                className="text-blue-400 hover:text-blue-600 text-sm p-1"
+                title="Move Up"
+              >
+                ↑
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveContainer(container.id, 'down');
+                }}
+                className="text-blue-400 hover:text-blue-600 text-sm p-1"
+                title="Move Down"
+              >
+                ↓
+              </button>
+            </div>
+          </div>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -448,15 +620,7 @@ export function EditableFormBuilder() {
                   {renderField(field, true)}
                 </div>
               )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  addField('text', container.id, 'left');
-                }}
-                className="w-full text-xs text-gray-500 border border-dashed border-gray-300 rounded p-2 hover:border-blue-400 hover:text-blue-600 transition-colors"
-              >
-                + Add Field
-              </button>
+              {/* Drag & drop only - no add field button to avoid text-only limitation */}
             </div>
 
             {/* Right Column */}
@@ -500,15 +664,7 @@ export function EditableFormBuilder() {
                   {renderField(field, true)}
                 </div>
               )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  addField('text', container.id, 'right');
-                }}
-                className="w-full text-xs text-gray-500 border border-dashed border-gray-300 rounded p-2 hover:border-blue-400 hover:text-blue-600 transition-colors"
-              >
-                + Add Field
-              </button>
+              {/* Drag & drop only - no add field button to avoid text-only limitation */}
             </div>
           </div>
         ) : (
@@ -704,12 +860,27 @@ export function EditableFormBuilder() {
             </div>
 
             {/* Form Content */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 min-h-[400px]">
+            <div 
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 min-h-[400px]"
+              onDrop={(e) => {
+                e.preventDefault();
+                const data = e.dataTransfer.getData('text/plain');
+                console.log('Drop in main area:', data);
+                if (data && !data.startsWith('new:') && !data.startsWith('container:')) {
+                  // Move field to standalone
+                  moveFieldToStandalone(data);
+                }
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+              }}
+            >
               {/* Layout Containers */}
-              {containers.map(renderContainer)}
+              {containers.map((container, index) => renderContainer(container, index))}
 
               {/* Standalone Fields */}
               <div className="space-y-2">
+                <div className="text-xs text-gray-400 mb-2">Standalone Fields</div>
                 {getStandaloneFields().map(field =>
                   <div
                     key={field.id}
@@ -718,6 +889,7 @@ export function EditableFormBuilder() {
                       e.dataTransfer.setData('text/plain', field.id);
                       console.log('Dragging standalone field:', field.id);
                     }}
+                    className="transition-all duration-200 hover:shadow-sm hover:z-10"
                   >
                     {renderField(field, false)}
                   </div>
